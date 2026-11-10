@@ -11,7 +11,7 @@ from triathlon.units import fmt_num
 state = build_state()
 p = state.profile
 
-st.title(f"Hallo {p.name}! 👋" if p.name else "Triathlon Dashboard")
+st.title(f"Hallo {p.name}! " if p.name else "Triathlon Dashboard")
 if p.race_date and state.days_to_race is not None and state.days_to_race >= 0:
     st.markdown(
         f"**{p.race_name}** ({p.race_distance}) am {p.race_date:%d.%m.%Y} – noch **{state.days_to_race} Tage** "
