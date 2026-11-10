@@ -8,7 +8,7 @@ Persönliches Dashboard, das dein Triathlon-Training steuert – läuft lokal au
 | **Trainingsplan** | Phasen bis zum Wettkampf, Wochenplan mit konkreten Einheiten (Watt, Pace, Puls), Fitness-Prognose |
 | **Ausdauer** | Alle Strava-Aktivitäten mit Trainingsbelastung (TSS), Umfang pro Woche |
 | **Regeneration** | HRV mit persönlichem Normalbereich, Ruhepuls, Schlaf, Gewicht (Garmin über intervals.icu) |
-| **Krafttraining** | Tagebuch mit Rotation (Brust/Rücken → Arme → Beine), Vorschläge fürs nächste Gewicht, Fortschritt |
+| **Krafttraining** | Rotation (Brust/Rücken → Arme → Beine), Vorschläge fürs nächste Gewicht, Fortschritt – im Gym per Hevy-App am Handy |
 | **Ernährung** | Kalorien & Makros, Lebensmittel-Suche (Open Food Facts), Ziele passen sich ans Training an |
 | **Ziele** | Eigene Ziele, teils automatisch gemessen (z. B. Fitness, Lauf-km pro Woche, Gewicht) |
 
@@ -58,7 +58,23 @@ Garmin hat keine offizielle Schnittstelle für Privatpersonen. Der stabile Weg f
 
 Die HRV-Ampel braucht mindestens 14 Nächte Daten, bevor sie deinen Normalbereich kennt.
 
-## 4. Schwellenwerte eintragen (wichtig für gute Empfehlungen)
+## 4. Krafttraining mit Hevy (Handy im Gym)
+
+Im Gym trägst du Gewicht und Wiederholungen in der App **Hevy** ein, das Dashboard holt die Workouts
+automatisch. Die Hevy-API gibt es nur mit **Hevy Pro**.
+
+1. Auf [hevy.com/settings?developer](https://hevy.com/settings?developer) einen **API Key** erzeugen.
+2. Im Dashboard unter **Einstellungen → Krafttraining (Hevy)** eintragen → *Verbindung testen*.
+3. **Krafttraining → Hevy:** *Übungsliste von Hevy laden* (ordnet bekannte Übungen automatisch zu),
+   fehlende Zuordnungen in der Tabelle auswählen → *Zuordnung speichern*.
+4. **Pläne an Hevy senden:** Jeder Plan wird eine Routine in Hevy – mit dem vorgeschlagenen Gewicht
+   und den Wiederholungen aus der doppelten Progression.
+5. Im Gym die Routine in Hevy starten. Danach links **„Jetzt synchronisieren“**: Verlauf, Fortschritt,
+   Rotation und Belastung werden aktualisiert und die Routinen bekommen die neuen Vorschläge.
+
+Aufwärmsätze und Übungen nur auf Zeit (z. B. Plank) werden nicht übernommen.
+
+## 5. Schwellenwerte eintragen (wichtig für gute Empfehlungen)
 
 Unter **Einstellungen → Athletenprofil**:
 
@@ -92,4 +108,4 @@ pytest
 ```
 
 Aufbau: `app.py` (Einstieg/Navigation), `views/` (Seiten), `triathlon/` (Logik: `load.py` Belastung,
-`recovery.py` Ampel, `plan.py` Periodisierung & Empfehlung, `strava.py`/`intervals.py` Datenquellen).
+`recovery.py` Ampel, `plan.py` Periodisierung & Empfehlung, `strava.py`/`intervals.py`/`hevy.py` Datenquellen).

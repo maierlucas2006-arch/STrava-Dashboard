@@ -144,7 +144,7 @@ def delete_session(session_id: int) -> None:
 def sessions_df(limit: int | None = None) -> pd.DataFrame:
     sql = """
         SELECT s.id, s.date, COALESCE(t.name, 'Freies Training') AS plan, s.duration_min, s.rpe, s.notes,
-               COUNT(st.id) AS saetze,
+               s.hevy_id, COUNT(st.id) AS saetze,
                COALESCE(SUM(st.weight * st.reps), 0) AS volumen
         FROM strength_sessions s
         LEFT JOIN workout_templates t ON t.id = s.template_id

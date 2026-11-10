@@ -121,6 +121,16 @@ CREATE TABLE IF NOT EXISTS food_log (
 );
 CREATE INDEX IF NOT EXISTS idx_food_log_date ON food_log(date);
 
+-- Übungsliste aus Hevy (Zwischenspeicher für die Zuordnung eigener Übungen)
+CREATE TABLE IF NOT EXISTS hevy_exercise_templates (
+    id                    TEXT PRIMARY KEY,       -- Hevy-ID, z. B. "D04AC939"
+    title                 TEXT NOT NULL,
+    type                  TEXT,
+    primary_muscle_group  TEXT,
+    equipment             TEXT,
+    is_custom             INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS goals (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     title          TEXT NOT NULL,
@@ -179,10 +189,29 @@ def query_df(sql: str, params: Iterable[Any] = ()) -> pd.DataFrame:
         return pd.read_sql_query(sql, con, params=tuple(params))
 
 
+# Spalten, die nach der ersten Version dazugekommen sind. Bestehende Datenbanken
+# bekommen sie beim Start automatisch (die Daten bleiben erhalten).
+MIGRATIONS: list[tuple[str, str, str]] = [
+    ("exercises", "hevy_template_id", "TEXT"),                  # zugeordnete Hevy-Übung
+    ("exercises", "from_hevy", "INTEGER NOT NULL DEFAULT 0"),   # 1 = beim Hevy-Import angelegt
+    ("workout_templates", "hevy_routine_id", "TEXT"),           # Routine in Hevy zu diesem Plan
+    ("strength_sessions", "hevy_id", "TEXT"),                   # Workout-ID in Hevy
+]
+
+
+def _migrate(con: sqlite3.Connection) -> None:
+    for table, column, declaration in MIGRATIONS:
+        columns = {row["name"] for row in con.execute(f"PRAGMA table_info({table})")}
+        if column not in columns:
+            con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+    con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_strength_sessions_hevy ON strength_sessions(hevy_id)")
+
+
 def init_db() -> None:
     """Legt fehlende Tabellen an und befüllt Startdaten (Kraftpläne, Lebensmittel)."""
     from triathlon import seed
 
     with connect() as con:
         con.executescript(SCHEMA)
+        _migrate(con)
     seed.seed_defaults()

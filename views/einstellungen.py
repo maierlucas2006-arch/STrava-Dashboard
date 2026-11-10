@@ -2,7 +2,7 @@ from datetime import date
 
 import streamlit as st
 
-from triathlon import intervals, settings, strava
+from triathlon import hevy, intervals, settings, strava
 from triathlon.settings import DEFAULT_TARGET_CTL, RACE_DISTANCES
 from triathlon.units import fmt_pace, parse_pace
 
@@ -80,6 +80,52 @@ if intervals.is_configured() and st.button("Verbindung testen", icon=":material/
         st.success(f"Verbunden mit: {intervals.test_connection()}")
     except intervals.IntervalsError as exc:
         st.error(str(exc))
+
+# ------------------------------------------------------------------ Hevy
+st.subheader("Krafttraining (Hevy)")
+with st.expander("So richtest du Hevy ein", expanded=not hevy.is_configured()):
+    st.markdown(
+        """
+1. Die Hevy-API gibt es nur mit **Hevy Pro** (Abo in der Hevy-App).
+2. Auf **[hevy.com/settings?developer](https://hevy.com/settings?developer)** anmelden und einen
+   **API Key** erzeugen.
+3. Key unten eintragen, speichern und **„Verbindung testen“** klicken.
+4. Unter **Krafttraining → Hevy** deine Übungen zuordnen und die Pläne an Hevy senden.
+   Danach im Gym einfach die Routine in Hevy starten – „Jetzt synchronisieren“ holt die Workouts ins Dashboard.
+        """
+    )
+with st.form("hevy_keys"):
+    hevy_key = st.text_input("Hevy API Key", value=settings.get("hevy_api_key") or "", type="password")
+    auto_update = st.checkbox(
+        "Gesendete Pläne nach jedem Sync aktualisieren",
+        value=bool(settings.get("hevy_auto_update_routines")),
+        help="Schreibt die neuen Gewichtsvorschläge in deine Hevy-Routinen. Änderungen, die du direkt in Hevy "
+             "an diesen Routinen machst, werden dabei überschrieben.",
+    )
+    if st.form_submit_button("Speichern"):
+        new_key = hevy_key.strip()
+        if new_key != (settings.get("hevy_api_key") or ""):
+            settings.set("hevy_last_sync", None)  # neues Konto → beim nächsten Sync alles laden
+        settings.set_many({"hevy_api_key": new_key, "hevy_auto_update_routines": auto_update})
+        st.rerun()
+if hevy.is_configured():
+    c1, c2, c3 = st.columns(3)
+    if c1.button("Verbindung testen", key="hevy_test", icon=":material/network_check:"):
+        try:
+            st.success(f"Verbunden mit: {hevy.test_connection()}")
+        except hevy.HevyError as exc:
+            st.error(str(exc))
+    if c2.button("Alle Workouts neu laden", key="hevy_full", icon=":material/history:"):
+        try:
+            with st.spinner("Lade Workouts aus Hevy …"):
+                n = hevy.sync_workouts(full=True)
+            st.toast(f"{n} Workouts aus Hevy geladen.", icon="✅")
+        except hevy.HevyError as exc:
+            st.error(str(exc))
+    if c3.button("Verbindung trennen", key="hevy_disconnect", icon=":material/link_off:",
+                 help="Löscht nur den API-Key. Importierte Workouts bleiben erhalten."):
+        hevy.disconnect()
+        st.rerun()
 
 # ------------------------------------------------------------------ Profil
 st.subheader("Athletenprofil & Schwellenwerte")

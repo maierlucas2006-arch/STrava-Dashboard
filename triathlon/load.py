@@ -101,9 +101,10 @@ def activity_tss(act: Mapping, profile: Profile) -> LoadResult:
 
 
 def strength_session_tss(duration_min: float | None, rpe: float | None) -> float:
-    """Krafttraining über Dauer und subjektive Anstrengung (RPE 1–10)."""
-    hours = (duration_min or 60) / 60
-    rpe = rpe or 6
+    """Krafttraining über Dauer und subjektive Anstrengung (RPE 1–10).
+    Fehlende Werte (z. B. Workouts aus Hevy ohne Gesamt-RPE): 60 min bzw. RPE 6."""
+    hours = (60 if duration_min is None or pd.isna(duration_min) or duration_min <= 0 else duration_min) / 60
+    rpe = 6 if rpe is None or pd.isna(rpe) or rpe <= 0 else rpe
     return round(hours * (rpe / 10) ** 2 * 100, 1)
 
 

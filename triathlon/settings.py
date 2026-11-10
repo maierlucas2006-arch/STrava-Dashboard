@@ -47,6 +47,9 @@ DEFAULTS: dict[str, Any] = {
     "strava_api_base": "https://www.strava.com/api/v3",
     "intervals_athlete_id": "0",
     "intervals_api_key": "",
+    "hevy_api_key": "",
+    "hevy_last_sync": None,            # UTC-Zeitpunkt des letzten Hevy-Abgleichs
+    "hevy_auto_update_routines": True,  # gesendete Pläne nach jedem Sync aktualisieren
 }
 
 ENV_OVERRIDES = {
@@ -55,6 +58,7 @@ ENV_OVERRIDES = {
     "strava_api_base": "STRAVA_API_BASE",
     "intervals_athlete_id": "INTERVALS_ATHLETE_ID",
     "intervals_api_key": "INTERVALS_API_KEY",
+    "hevy_api_key": "HEVY_API_KEY",
 }
 
 RACE_DISTANCES = ["Sprint", "Olympisch", "Mitteldistanz", "Langdistanz"]
