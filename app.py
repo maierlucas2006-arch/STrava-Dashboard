@@ -8,6 +8,7 @@ from triathlon import db, strava, ui
 
 st.set_page_config(page_title="Triathlon Dashboard", page_icon="🏊", layout="wide")
 db.init_db()
+ui.inject_style()
 
 # Rückkehr von der Strava-Anmeldung: http://localhost:8501/?state=…&code=…
 params = st.query_params
@@ -27,7 +28,7 @@ if params.get("state") == strava.OAUTH_STATE:
 
 pages = [
     st.Page("views/uebersicht.py", title="Übersicht", icon=":material/dashboard:", default=True),
-    st.Page("views/trainingsplan.py", title="Trainingsplan", icon=":material/event_note:"),
+    st.Page("views/galerie.py", title="Trainingsgalerie", icon=":material/view_quilt:"),
     st.Page("views/ausdauer.py", title="Ausdauer", icon=":material/directions_bike:"),
     st.Page("views/regeneration.py", title="Regeneration", icon=":material/bedtime:"),
     st.Page("views/kraft.py", title="Krafttraining", icon=":material/fitness_center:"),

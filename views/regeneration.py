@@ -3,16 +3,16 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from triathlon import charts, intervals
+from triathlon import charts, intervals, ui, visual
 from triathlon.analysis import build_state
 
 state = build_state()
 w = state.wellness
-st.title("Regeneration")
+ui.page_header("Regeneration", "Schlaf, Ruhepuls und HRV von Garmin – und was sie für heute bedeuten.")
 
 ready = state.readiness
 with st.container(border=True):
-    st.markdown(f"#### {ready.emoji} Ampel heute: {ready.label}")
+    st.html(visual.status_html(ready.level, f"Ampel heute: {ready.label}"))
     for text, points in ready.reasons:
         icon = "✅" if points == 0 else ("⚠️" if points == -1 else "❗")
         st.markdown(f"{icon} {text}")

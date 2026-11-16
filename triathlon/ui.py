@@ -1,12 +1,11 @@
 """Gemeinsame Bausteine für die Seiten."""
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
-from triathlon import hevy, intervals, settings, strava
+from triathlon import hevy, intervals, library, settings, strava, strength, visual
 from triathlon.analysis import State
-from triathlon.plan import Recommendation
-from triathlon.recovery import LEVELS
 from triathlon.sync import sync_all
 
 
@@ -30,24 +29,57 @@ def sidebar() -> None:
         )
 
 
-def recommendation_card(rec: Recommendation, state: State, show_reasons: bool = True) -> None:
-    emoji, label = LEVELS[rec.level]
+def inject_style() -> None:
+    """Schriften, Zonenfarben und Feinschliff – einmal pro Lauf in app.py."""
+    try:
+        theme_type = st.context.theme.type
+    except Exception:  # außerhalb von Streamlit (Tests)
+        theme_type = None
+    st.html(visual.style_html(theme_type))
+
+
+def page_header(title: str, lead: str | None = None) -> None:
+    st.html(visual.page_header(title, lead))
+
+
+TODAY_TEXT = {
+    "green": ("Grünes Licht", "Deine Werte liegen im Normalbereich – auch harte Einheiten passen heute."),
+    "yellow": ("Heute lieber locker", "Ein Warnsignal: Harte Intervalle besser auf einen anderen Tag legen."),
+    "red": ("Heute Erholung", "Mehrere Warnsignale: Lass harte und lange Einheiten heute weg."),
+}
+
+
+def today_card(state: State) -> None:
+    """Ampel, passende Kategorien aus der Galerie und die nächste Krafteinheit."""
+    ready = state.readiness
+    headline, lead = TODAY_TEXT[ready.level]
+    suitable = library.suitable_categories(ready.level, state.phase.key)
     with st.container(border=True):
-        st.markdown(f"#### {emoji} {rec.headline}")
-        for s in rec.sessions:
-            minutes = f" · {s.minutes} min" if s.minutes else ""
-            st.markdown(f"**{s.icon} {s.title}**{minutes}  \n{s.detail}")
-        if rec.strength:
-            st.markdown(f"**🏋️ Kraft:** {rec.strength}")
-        for note in rec.notes:
-            st.caption(f"ℹ️ {note}")
-        if show_reasons:
-            with st.expander(f"Warum {label}?"):
-                for text, points in state.readiness.reasons:
-                    icon = "✅" if points == 0 else ("⚠️" if points == -1 else "❗")
-                    st.markdown(f"{icon} {text}")
-                st.caption("Grün = alles im Rahmen · Gelb = ein Warnsignal · Rot = mehrere Warnsignale. "
-                           "Das ist eine Entscheidungshilfe – dein Körpergefühl zählt mit.")
+        st.html(visual.status_html(ready.level, headline, lead))
+        st.markdown("**Passt heute:** " + ", ".join(library.CATEGORIES[c].name for c in suitable))
+        st.caption(f"Schwerpunkt der Phase „{state.phase.name}“, begrenzt durch die Ampel.")
+
+        done_today = bool((state.strength_sessions["date"] == pd.Timestamp(state.today)).any()) \
+            if not state.strength_sessions.empty else False
+        upcoming = strength.rotation(1)
+        if done_today:
+            st.markdown("**Kraft:** heute schon erledigt.")
+        elif upcoming:
+            name = upcoming[0]["name"]
+            text = {
+                "green": f"{name} ist als Nächstes dran.",
+                "yellow": f"{name} geht, aber mit einem Satz weniger pro Übung.",
+                "red": f"Heute aussetzen – {name} kommt beim nächsten Mal.",
+            }[ready.level]
+            st.markdown(f"**Kraft:** {text}")
+
+        st.page_link("views/galerie.py", label="Training aussuchen", icon=":material/view_quilt:")
+        with st.expander(f"Warum {ready.label}?"):
+            for text, points in ready.reasons:
+                icon = "✅" if points == 0 else ("⚠️" if points == -1 else "❗")
+                st.markdown(f"{icon} {text}")
+            st.caption("Grün = alles im Rahmen, Gelb = ein Warnsignal, Rot = mehrere Warnsignale. "
+                       "Das ist eine Entscheidungshilfe – dein Körpergefühl zählt mit.")
 
 
 def threshold_warning(state: State) -> None:

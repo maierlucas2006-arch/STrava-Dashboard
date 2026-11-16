@@ -2,11 +2,11 @@ from datetime import date
 
 import streamlit as st
 
-from triathlon import hevy, intervals, settings, strava
+from triathlon import hevy, intervals, settings, strava, ui
 from triathlon.settings import DEFAULT_TARGET_CTL, RACE_DISTANCES
 from triathlon.units import fmt_pace, parse_pace
 
-st.title("Einstellungen")
+ui.page_header("Einstellungen", "Verbindungen, Athletenprofil und Schwellenwerte. Je genauer die Schwellen, desto besser passen Zielwerte und Belastung.")
 p = settings.load_profile()
 
 # ------------------------------------------------------------------ Strava

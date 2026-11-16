@@ -13,12 +13,12 @@ from triathlon.load import GROUP_LABELS
 
 LIGHT = {
     "swim": "#2a78d6", "bike": "#eb6834", "run": "#1baf7a", "strength": "#eda100", "other": "#898781",
-    "muted": "#898781", "grid": "#e1e0d9", "band": "rgba(137,135,129,0.18)",
+    "muted": "#7C8A82", "grid": "#D3DBD4", "band": "rgba(45,90,71,0.10)",
     "positive": "#2a78d6", "negative": "#e34948",
 }
 DARK = {
     "swim": "#3987e5", "bike": "#d95926", "run": "#199e70", "strength": "#c98500", "other": "#898781",
-    "muted": "#898781", "grid": "#2c2c2a", "band": "rgba(195,194,183,0.14)",
+    "muted": "#8E9C94", "grid": "#2A3A33", "band": "rgba(140,194,168,0.12)",
     "positive": "#3987e5", "negative": "#e66767",
 }
 GROUP_ORDER = ["swim", "bike", "run", "strength", "other"]

@@ -2,22 +2,35 @@ from datetime import date
 
 import streamlit as st
 
-from triathlon import goals
+from triathlon import charts, goals, plan, ui, visual
 from triathlon.analysis import build_state
 
 state = build_state()
 p = state.profile
-st.title("Ziele")
+ui.page_header("Ziele", "Dein Wettkampf, der Weg dorthin und alles, was du dir sonst noch vornimmst.")
 
 # ------------------------------------------------------------------ Hauptwettkampf
 if p.race_date:
-    with st.container(border=True):
-        days = state.days_to_race
-        st.markdown(f"### 🏁 {p.race_name}")
-        st.markdown(f"{p.race_distance} · {p.race_date:%d.%m.%Y}"
-                    + (f" · noch **{days} Tage**" if days is not None and days >= 0 else "")
-                    + (f" · Zielzeit **{p.race_goal_time}**" if p.race_goal_time else ""))
-        st.caption("Wettkampf und Zielzeit änderst du in den Einstellungen.")
+    days = state.days_to_race
+    st.subheader(p.race_name or "Wettkampf")
+    st.markdown(f"{p.race_distance} am {p.race_date:%d.%m.%Y}"
+                + (f", noch **{days} Tage**" if days is not None and days >= 0 else "")
+                + (f". Zielzeit **{p.race_goal_time}**" if p.race_goal_time else ""))
+    if days is not None and days >= 0:
+        blocks = plan.phase_timeline(state.today, p.race_date, p.race_distance)
+        st.html(visual.phases_html(blocks, state.phase.key))
+        st.caption(f"Jetzt: **{state.phase.name}** – {state.phase.focus}")
+        if days > 0:
+            projection = plan.ctl_projection(state.ctl, state.today, p.race_date, p.race_distance, p.target_ctl)
+            charts.show(charts.projection_chart(state.pmc.tail(120), projection, p.target_ctl, blocks))
+            peak, final = projection["ctl"].max(), projection["ctl"].iloc[-1]
+            st.caption(f"Wenn du die Wochenziele einhältst, erreichst du vor dem Tapering etwa **CTL {peak:.0f}** "
+                       f"(Ziel {p.target_ctl:.0f}, anpassbar in den Einstellungen). Im Tapering sinkt die Fitness "
+                       f"bewusst leicht auf ca. {final:.0f} – dafür stehst du frisch an der Startlinie.")
+    st.caption("Wettkampf, Zielzeit und Ziel-Fitness änderst du in den Einstellungen.")
+else:
+    st.info("Trag in den Einstellungen deinen Wettkampf ein – dann siehst du hier die Phasen bis zum Start.",
+            icon=":material/flag:")
 
 
 def goal_card(goal: dict) -> None:
@@ -71,7 +84,7 @@ if not all_goals:
     st.caption("Noch keine Ziele. Leg unten welche an – oder starte mit ein paar Vorschlägen:")
     if st.button("Vorschläge übernehmen", icon=":material/auto_awesome:"):
         goals.add_goal(f"Fitness (CTL) auf {p.target_ctl:.0f} bringen", "Training", "ctl", round(state.ctl),
-                       p.target_ctl, "CTL", p.race_date, "Ziel-CTL für den Wettkampf (siehe Trainingsplan).")
+                       p.target_ctl, "CTL", p.race_date, "Ziel-CTL für den Wettkampf (siehe oben).")
         goals.add_goal("3 Krafteinheiten pro Woche", "Training", "week_strength", None, 3, "x", None, "")
         goals.add_goal("Laufumfang auf 30 km pro Woche", "Training", "week_run_km", None, 30, "km", None,
                        "Langsam steigern – max. ca. 10 % pro Woche.")

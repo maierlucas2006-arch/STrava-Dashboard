@@ -7,7 +7,7 @@ from streamlit.testing.v1 import AppTest
 from triathlon.demo import build_demo
 
 APP = str(Path(__file__).resolve().parent.parent / "app.py")
-PAGES = ["views/uebersicht.py", "views/trainingsplan.py", "views/ausdauer.py", "views/regeneration.py",
+PAGES = ["views/uebersicht.py", "views/galerie.py", "views/ausdauer.py", "views/regeneration.py",
          "views/kraft.py", "views/ernaehrung.py", "views/ziele.py", "views/einstellungen.py"]
 
 

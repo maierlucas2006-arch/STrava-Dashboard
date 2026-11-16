@@ -3,10 +3,10 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from triathlon import charts, hevy, strength
+from triathlon import charts, hevy, strength, ui
 from triathlon.units import WEEKDAYS
 
-st.title("Krafttraining")
+ui.page_header("Krafttraining", "Rotation, Gewichtsvorschläge und Fortschritt – im Gym trägst du per Hevy ein.")
 tab_log, tab_history, tab_progress, tab_plans, tab_hevy = st.tabs(
     ["Training eintragen", "Verlauf", "Fortschritt", "Pläne bearbeiten", "Hevy"]
 )

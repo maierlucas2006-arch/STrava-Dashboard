@@ -5,8 +5,39 @@ runOnSave = false
 [browser]
 gatherUsageStats = false
 
-[theme]
-primaryColor = "#2a78d6"
-
 [client]
 toolbarMode = "minimal"
+
+# Design: Schwarzwald – Nebelgrau und Tannengrün, Newsreader für Überschriften und Zahlen,
+# Archivo für Text. Hell und dunkel folgen der Systemeinstellung (umschaltbar im Menü ⋮).
+[theme]
+font = "Archivo:https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap"
+headingFont = "Newsreader:https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&display=swap"
+headingFontWeights = [500, 500, 500, 600, 600, 600]
+headingFontSizes = ["3rem", "2rem", "1.55rem", "1.2rem"]
+metricValueFontSize = "2.1rem"
+baseRadius = "0.6rem"
+buttonRadius = "0.6rem"
+showSidebarBorder = true
+
+[theme.light]
+primaryColor = "#2D5A47"
+backgroundColor = "#EEF2EE"
+secondaryBackgroundColor = "#E1E8E2"
+textColor = "#17231D"
+borderColor = "#CBD5CC"
+linkColor = "#2D5A47"
+
+[theme.light.sidebar]
+backgroundColor = "#E5EBE5"
+
+[theme.dark]
+primaryColor = "#3B7A5E"
+backgroundColor = "#15211C"
+secondaryBackgroundColor = "#1D2C26"
+textColor = "#E2E9E4"
+borderColor = "#2D3E36"
+linkColor = "#8CC2A8"
+
+[theme.dark.sidebar]
+backgroundColor = "#1A2822"

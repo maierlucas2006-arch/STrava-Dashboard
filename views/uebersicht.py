@@ -1,23 +1,27 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pandas as pd
 import streamlit as st
 
-from triathlon import charts, recovery, ui
+from triathlon import charts, recovery, ui, visual
 from triathlon.analysis import build_state
 from triathlon.load import GROUP_LABELS
-from triathlon.units import fmt_num
+from triathlon.units import WEEKDAYS_LONG, fmt_num
+
+MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober",
+          "November", "Dezember"]
 
 state = build_state()
 p = state.profile
 
-st.title(f"Hallo {p.name}! " if p.name else "Triathlon Dashboard")
+hour = datetime.now().hour
+greeting = "Guten Morgen" if hour < 11 else "Guten Abend" if hour >= 18 else "Hallo"
+title = f"{greeting}, {p.name}" if p.name else greeting
+lead = f"{WEEKDAYS_LONG[state.today.weekday()]}, {state.today.day}. {MONTHS[state.today.month - 1]}."
 if p.race_date and state.days_to_race is not None and state.days_to_race >= 0:
-    st.markdown(
-        f"**{p.race_name}** ({p.race_distance}) am {p.race_date:%d.%m.%Y} – noch **{state.days_to_race} Tage** "
-        f"({state.days_to_race / 7:.0f} Wochen) · Phase: **{state.phase.name}**"
-    )
-    st.caption(state.phase.focus)
+    lead += (f" Noch {state.days_to_race} Tage bis zum {p.race_name} ({p.race_distance}) – "
+             f"Phase {state.phase.name}.")
+ui.page_header(title, lead)
 
 if state.activities.empty:
     st.info("Noch keine Trainingsdaten. Verbinde Strava in den Einstellungen und klick dann links auf "
@@ -25,10 +29,16 @@ if state.activities.empty:
     st.page_link("views/einstellungen.py", label="Zu den Einstellungen", icon=":material/settings:")
 ui.threshold_warning(state)
 
-left, right = st.columns(2, gap="large")
+# ------------------------------------------------------------------ Die letzten 14 Tage
+st.subheader("Die letzten 14 Tage")
+st.html(visual.recent_days_html(state.activities, state.strength_sessions, state.today))
+st.html(visual.zone_legend())
+
+# ------------------------------------------------------------------ Heute & Zustand
+left, right = st.columns([5, 7], gap="large")
 with left:
-    st.subheader("Empfehlung für heute")
-    ui.recommendation_card(state.recommendation, state)
+    st.subheader("Heute")
+    ui.today_card(state)
 
 with right:
     st.subheader("Dein Zustand")
@@ -70,7 +80,9 @@ with right:
     strength_done = len(state.week_strength())
     st.progress(min(strength_done / t.strength, 1.0) if t.strength else 1.0,
                 text=f"Kraft: {strength_done} von {t.strength} Einheiten")
+    st.caption("Die Wochenziele ergeben sich aus deiner Fitness und dem Abstand zum Wettkampf.")
 
+# ------------------------------------------------------------------ Verlauf
 st.divider()
 col_a, col_b = st.columns(2, gap="large")
 with col_a:

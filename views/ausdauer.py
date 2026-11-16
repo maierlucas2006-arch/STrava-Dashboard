@@ -9,7 +9,7 @@ from triathlon.load import GROUP_LABELS
 from triathlon.units import fmt_duration, fmt_pace, speed_to_pace
 
 state = build_state()
-st.title("Ausdauer")
+ui.page_header("Ausdauer", "Alle Einheiten aus Strava mit ihrer Belastung.")
 ui.threshold_warning(state)
 
 acts = state.activities

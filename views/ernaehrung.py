@@ -3,11 +3,11 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-from triathlon import charts, nutrition, settings
+from triathlon import charts, nutrition, settings, ui
 
 profile = settings.load_profile()
 lookup_barcode = st.cache_data(ttl=3600, show_spinner="Suche Produkt …")(nutrition.lookup_barcode)
-st.title("Ernährung")
+ui.page_header("Ernährung", "Was du isst, gemessen an dem, was dein Training heute braucht.")
 
 c1, c2 = st.columns([1, 3])
 day = c1.date_input("Tag", value=date.today(), format="DD.MM.YYYY")
