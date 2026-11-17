@@ -12,7 +12,7 @@ Persönliches Dashboard, das dein Triathlon-Training steuert – läuft lokal au
 | **Ernährung** | Kalorien & Makros, Lebensmittel-Suche (Open Food Facts), Ziele passen sich ans Training an |
 | **Ziele** | Phasen bis zum Wettkampf mit Fitness-Prognose, eigene Ziele, teils automatisch gemessen (z. B. Fitness, Lauf-km pro Woche, Gewicht) |
 
-Alle Daten liegen nur bei dir in `data/dashboard.db`.
+Jede Person meldet sich mit ihrem Google-Konto an und arbeitet mit ihren eigenen Daten (eine Datei pro Konto unter `data/users/`). Passwörter speichert das Dashboard nicht.
 
 ---
 
@@ -33,6 +33,34 @@ Alle Daten liegen nur bei dir in `data/dashboard.db`.
 
 > Erst mal nur anschauen? Rechtsklick auf **`start_demo.py`** → *Run*. Das startet das Dashboard mit
 > erfundenen Beispieldaten (eigene Datenbank, deine echten Daten bleiben unberührt).
+
+## Anmeldung einrichten (einmalig, ca. 10 Minuten)
+
+Den Login übernimmt Streamlit (`st.login`, OpenID Connect) mit Google-Konten.
+
+1. **Google Cloud:** Auf [console.cloud.google.com](https://console.cloud.google.com) ein Projekt anlegen.
+   Unter *Google Auth Platform → Branding* auf **Get started** klicken, App-Name und E-Mail eintragen,
+   Zielgruppe **Extern**.
+2. **Testnutzer:** Unter *Zielgruppe (Audience) → Testnutzer* die eigene Google-Adresse eintragen. Solange die
+   App im Test ist, können sich nur eingetragene Testnutzer anmelden; für alle öffnest du sie mit
+   „App veröffentlichen“.
+3. **Client:** Unter *Clients → Client erstellen* den Typ **Webanwendung** wählen, als autorisierte
+   Weiterleitungs-URI `http://localhost:8501/oauth2callback` eintragen und **Client-ID** und
+   **Clientschlüssel** kopieren (der Schlüssel wird nur einmal angezeigt).
+4. **Secrets:** `.streamlit/secrets.example.toml` nach `.streamlit/secrets.toml` kopieren und die Werte
+   eintragen. Den `cookie_secret` erzeugst du im Terminal mit
+   `python -c "import secrets; print(secrets.token_hex(32))"`. `secrets.toml` steht in `.gitignore` und
+   landet nie im Git.
+5. `pip install -r requirements.txt` (neu: `Authlib`), dann `start.py` starten und **Mit Google anmelden**.
+6. **Bisherige Daten:** Lagen schon Daten in `data/dashboard.db`, erscheint nach der Anmeldung unter
+   *Einstellungen* der Knopf **In mein Konto übernehmen** – einmal klicken, fertig.
+
+`start_demo.py` und die Tests laufen ohne Anmeldung.
+
+**Beim Deployment:** `redirect_uri` in den Secrets des Hosters und im Google-Client auf
+`https://deine-adresse/oauth2callback` umstellen. Die Nutzerdaten liegen als Dateien unter `data/` – der
+Hoster braucht dafür dauerhaften Speicher (bei Streamlit Community Cloud gehen lokale Dateien bei einem
+Neustart verloren).
 
 ## 2. Strava verbinden
 

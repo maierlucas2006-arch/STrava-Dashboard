@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-from triathlon import charts, recovery, ui, visual
+from triathlon import auth, charts, recovery, ui, visual
 from triathlon.analysis import build_state
 from triathlon.load import GROUP_LABELS
 from triathlon.units import WEEKDAYS_LONG, fmt_num
@@ -23,7 +23,10 @@ if p.race_date and state.days_to_race is not None and state.days_to_race >= 0:
              f"Phase {state.phase.name}.")
 ui.page_header(title, lead)
 
-if state.activities.empty:
+if auth.legacy_database() is not None:
+    st.info("Auf diesem Rechner liegen noch deine Daten aus der Zeit vor der Anmeldung.", icon=":material/move_down:")
+    st.page_link("views/einstellungen.py", label="In mein Konto übernehmen", icon=":material/settings:")
+elif state.activities.empty:
     st.info("Noch keine Trainingsdaten. Verbinde Strava in den Einstellungen und klick dann links auf "
             "„Jetzt synchronisieren“.", icon=":material/link:")
     st.page_link("views/einstellungen.py", label="Zu den Einstellungen", icon=":material/settings:")

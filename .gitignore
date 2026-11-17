@@ -13,3 +13,6 @@ venv/
 .vscode/
 
 .env
+
+# Zugangsdaten für den Login (niemals ins Git)
+.streamlit/secrets.toml

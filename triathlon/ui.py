@@ -4,7 +4,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from triathlon import hevy, intervals, library, settings, strava, strength, visual, wger
+from triathlon import auth, db, hevy, intervals, library, settings, strava, strength, visual, wger
 from triathlon.analysis import State
 from triathlon.sync import sync_all
 
@@ -29,6 +29,11 @@ def sidebar() -> None:
             f"wger: {'✅ eingerichtet' if wger.is_configured() else '⚪ nicht eingerichtet'}"
             + ("  \nHevy: ✅ eingerichtet" if hevy.is_configured() else "")
         )
+        if not auth.demo_mode() and st.user.get("is_logged_in"):
+            st.divider()
+            st.caption(f"Angemeldet als {st.user.get('email') or st.user.get('name') or 'Konto'}")
+            if st.button("Abmelden", icon=":material/logout:", width="stretch"):
+                st.logout()
 
 
 def inject_style() -> None:
@@ -38,6 +43,24 @@ def inject_style() -> None:
     except Exception:  # außerhalb von Streamlit (Tests)
         theme_type = None
     st.html(visual.style_html(theme_type))
+
+
+def require_login() -> None:
+    """Zeigt die Anmeldeseite, bis jemand angemeldet ist, und wählt dann dessen Datenbank."""
+    if auth.demo_mode():
+        db.use_database(None)
+        return
+    if "is_logged_in" not in st.user:
+        st.error("Die Anmeldung ist noch nicht eingerichtet: In `.streamlit/secrets.toml` fehlt der Abschnitt "
+                 "`[auth]`. Vorlage: `.streamlit/secrets.example.toml` (Anleitung in der README).",
+                 icon=":material/lock:")
+        st.stop()
+    if not st.user.is_logged_in:
+        page_header("Triathlon Dashboard",
+                    "Training, Erholung und Ernährung an einem Ort. Melde dich an – deine Daten siehst nur du.")
+        st.button("Mit Google anmelden", type="primary", icon=":material/login:", on_click=st.login)
+        st.stop()
+    db.use_database(auth.database_for(st.user.get("iss", ""), st.user.get("sub", "")))
 
 
 def page_header(title: str, lead: str | None = None) -> None:

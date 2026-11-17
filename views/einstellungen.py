@@ -2,12 +2,25 @@ from datetime import date
 
 import streamlit as st
 
-from triathlon import hevy, intervals, settings, strava, ui, wger
+from triathlon import auth, db, hevy, intervals, settings, strava, ui, wger
 from triathlon.settings import DEFAULT_TARGET_CTL, RACE_DISTANCES
 from triathlon.units import fmt_pace, parse_pace
 
 ui.page_header("Einstellungen", "Verbindungen, Athletenprofil und Schwellenwerte. Je genauer die Schwellen, desto besser passen Zielwerte und Belastung.")
 p = settings.load_profile()
+
+# ------------------------------------------------------------------ Bisherige Daten (vor der Anmeldung)
+legacy = auth.legacy_database()
+if legacy is not None:
+    with st.container(border=True):
+        st.markdown("**Bisherige Daten übernehmen**")
+        st.caption(f"Auf diesem Rechner liegen noch Daten aus der Zeit vor der Anmeldung (`{legacy.name}`). "
+                   "Du kannst sie einmalig in dein Konto übernehmen. Was in deinem Konto bisher steht, wird dabei "
+                   "ersetzt; danach sieht kein anderes Konto diese Daten.")
+        if st.button("In mein Konto übernehmen", type="primary", icon=":material/move_down:"):
+            archived = auth.adopt_legacy_data(db.current_path())
+            st.toast(f"Übernommen. Die alte Datei heißt jetzt {archived.name}.", icon="✅")
+            st.rerun()
 
 # ------------------------------------------------------------------ Strava
 st.subheader("Strava")
@@ -261,4 +274,4 @@ with st.expander("Erweitert"):
         if st.form_submit_button("Speichern"):
             settings.set_many({"history_days": int(history_days), "strava_api_base": api_base.strip()})
             st.rerun()
-    st.caption("Alle Daten liegen lokal in `data/dashboard.db` auf deinem PC.")
+    st.caption(f"Deine Daten liegen in der Datei `{db.current_path().name}` – nur dein Konto greift darauf zu.")

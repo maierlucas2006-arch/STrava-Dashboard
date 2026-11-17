@@ -7,8 +7,9 @@ import streamlit as st
 from triathlon import db, strava, ui
 
 st.set_page_config(page_title="Triathlon Dashboard", page_icon="🏊", layout="wide")
-db.init_db()
 ui.inject_style()
+ui.require_login()   # Anmeldeseite – danach gilt die Datenbank des angemeldeten Kontos
+db.init_db()
 
 # Rückkehr von der Strava-Anmeldung: http://localhost:8501/?state=…&code=…
 params = st.query_params

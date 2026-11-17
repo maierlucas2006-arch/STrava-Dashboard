@@ -1,14 +1,16 @@
 """Lokale SQLite-Datenbank: Verbindung, Schema und kleine Helfer.
 
-Alle Daten liegen in ``data/dashboard.db`` (nicht im Git). Über die
-Umgebungsvariable ``TRI_DB_PATH`` lässt sich eine andere Datei nutzen,
-z. B. für Demo-Daten oder Tests.
+Jedes Konto hat eine eigene Datei unter ``data/users/`` (nicht im Git), siehe ``auth.py``.
+Welche Datei gerade gilt, legt ``use_database`` für den laufenden Durchlauf fest.
+Ohne Auswahl gilt ``data/dashboard.db`` bzw. die Datei aus ``TRI_DB_PATH``
+(Demo-Daten und Tests).
 """
 from __future__ import annotations
 
 import os
 import sqlite3
 from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
@@ -16,6 +18,21 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = Path(os.environ.get("TRI_DB_PATH", ROOT / "data" / "dashboard.db"))
+
+# Pro Durchlauf (Streamlit startet für jede Sitzung einen eigenen Thread) die Datei
+# des angemeldeten Kontos. Ein ContextVar ist pro Thread getrennt – zwei Personen,
+# die gleichzeitig angemeldet sind, landen nie in derselben Datei.
+_active_path: ContextVar[Path | None] = ContextVar("tri_db_path", default=None)
+
+
+def use_database(path: Path | None) -> None:
+    """Wählt die Datenbank für den aktuellen Durchlauf. ``None`` = Standarddatei."""
+    _active_path.set(Path(path) if path else None)
+
+
+def current_path() -> Path:
+    return _active_path.get() or DB_PATH
+
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS settings (
@@ -168,8 +185,9 @@ CREATE TABLE IF NOT EXISTS goals (
 
 @contextmanager
 def connect() -> Iterator[sqlite3.Connection]:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(DB_PATH)
+    path = current_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(path)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON")
     try:
