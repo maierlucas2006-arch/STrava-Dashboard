@@ -168,7 +168,8 @@ def auto_map_exercises() -> int:
     if not by_title:
         return 0
     mapped = 0
-    for ex in db.fetch_all("SELECT id, name FROM exercises WHERE hevy_template_id IS NULL AND from_hevy = 0"):
+    for ex in db.fetch_all("SELECT id, name FROM exercises WHERE hevy_template_id IS NULL AND from_hevy = 0"
+                           " AND from_wger = 0"):
         candidates = [ex["name"], *DEFAULT_MAPPING.get(ex["name"], [])]
         for title in candidates:
             template_id = by_title.get(title.strip().lower())
@@ -210,7 +211,7 @@ def mapping_table() -> list[dict]:
         """SELECT e.id, e.name, e.hevy_template_id, t.title AS hevy_title,
                   EXISTS(SELECT 1 FROM template_exercises te WHERE te.exercise_id = e.id) AS in_plan
            FROM exercises e LEFT JOIN hevy_exercise_templates t ON t.id = e.hevy_template_id
-           WHERE e.from_hevy = 0 ORDER BY in_plan DESC, e.name"""
+           WHERE e.from_hevy = 0 AND e.from_wger = 0 ORDER BY in_plan DESC, e.name"""
     )
 
 

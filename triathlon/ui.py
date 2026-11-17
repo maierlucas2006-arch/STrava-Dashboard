@@ -4,7 +4,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from triathlon import hevy, intervals, library, settings, strava, strength, visual
+from triathlon import hevy, intervals, library, settings, strava, strength, visual, wger
 from triathlon.analysis import State
 from triathlon.sync import sync_all
 
@@ -13,8 +13,9 @@ def sidebar() -> None:
     with st.sidebar:
         st.markdown("### Daten")
         if st.button("Jetzt synchronisieren", icon=":material/sync:", width="stretch",
-                     disabled=not (strava.is_connected() or intervals.is_configured() or hevy.is_configured())):
-            with st.spinner("Lade Daten von Strava, intervals.icu und Hevy …"):
+                     disabled=not (strava.is_connected() or intervals.is_configured() or wger.is_configured()
+                                   or hevy.is_configured())):
+            with st.spinner("Lade Daten …"):
                 results = sync_all()
             st.session_state["sync_results"] = results
             st.rerun()
@@ -25,7 +26,8 @@ def sidebar() -> None:
         st.caption(
             f"Strava: {'✅ verbunden' if strava.is_connected() else '⚪ nicht verbunden'}  \n"
             f"intervals.icu: {'✅ eingerichtet' if intervals.is_configured() else '⚪ nicht eingerichtet'}  \n"
-            f"Hevy: {'✅ eingerichtet' if hevy.is_configured() else '⚪ nicht eingerichtet'}"
+            f"wger: {'✅ eingerichtet' if wger.is_configured() else '⚪ nicht eingerichtet'}"
+            + ("  \nHevy: ✅ eingerichtet" if hevy.is_configured() else "")
         )
 
 

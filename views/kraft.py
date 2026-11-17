@@ -3,21 +3,25 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from triathlon import charts, hevy, strength, ui
+from triathlon import charts, hevy, settings, strength, ui, wger
 from triathlon.units import WEEKDAYS
 
-ui.page_header("Krafttraining", "Rotation, Gewichtsvorschläge und Fortschritt – im Gym trägst du per Hevy ein.")
-tab_log, tab_history, tab_progress, tab_plans, tab_hevy = st.tabs(
-    ["Training eintragen", "Verlauf", "Fortschritt", "Pläne bearbeiten", "Hevy"]
-)
+ui.page_header("Krafttraining", "Rotation, Gewichtsvorschläge und Fortschritt – im Gym trägst du in der "
+               "wger-App ein.")
+tab_names = ["Training eintragen", "Verlauf", "Fortschritt", "Pläne bearbeiten", "wger"]
+if hevy.is_configured():
+    tab_names.append("Hevy")
+tabs = st.tabs(tab_names)
+tab_log, tab_history, tab_progress, tab_plans, tab_wger = tabs[:5]
+tab_hevy = tabs[5] if len(tabs) > 5 else None
 
 plans = strength.templates()
 next_plan = (strength.rotation(1) or [None])[0]
 
 # ------------------------------------------------------------------ Eintragen
 with tab_log:
-    if hevy.is_configured():
-        st.caption("Im Gym trägst du in der Hevy-App ein – hier nur, wenn du etwas nachtragen willst.")
+    if wger.is_configured() or hevy.is_configured():
+        st.caption("Im Gym trägst du in der App ein – hier nur, wenn du etwas nachtragen willst.")
     if not plans:
         st.info("Noch keine Trainingspläne – leg unter „Pläne bearbeiten“ einen an.")
     else:
@@ -101,9 +105,10 @@ with tab_history:
         day_of = date.fromisoformat(row.date)
         title = (f"{WEEKDAYS[day_of.weekday()]} {day_of:%d.%m.%Y} · {row.plan} · {row.saetze} Sätze · "
                  f"{row.volumen:,.0f} kg Volumen".replace(",", "."))
-        from_hevy = isinstance(row.hevy_id, str) and bool(row.hevy_id)
-        if from_hevy:
-            title += " · aus Hevy"
+        app = ("Hevy" if isinstance(row.hevy_id, str) and row.hevy_id
+               else "wger" if isinstance(row.wger_id, str) and row.wger_id else None)
+        if app:
+            title += f" · aus {app}"
         with st.expander(title):
             st.dataframe(strength.session_sets(row.id).drop(columns=["rpe"]), hide_index=True, width="stretch",
                          column_config={"uebung": "Übung", "satz": "Satz", "gewicht": "Gewicht (kg)", "wdh": "Wdh."})
@@ -115,8 +120,8 @@ with tab_history:
             if isinstance(row.notes, str) and row.notes:
                 meta.append(row.notes)
             st.caption(" · ".join(meta))
-            if from_hevy:
-                st.caption("Änderungen bitte in Hevy machen – beim nächsten Sync wird die Einheit überschrieben.")
+            if app:
+                st.caption(f"Änderungen bitte in {app} machen – beim nächsten Sync wird die Einheit überschrieben.")
             if st.button("Einheit löschen", key=f"del_{row.id}", icon=":material/delete:"):
                 strength.delete_session(row.id)
                 st.rerun()
@@ -224,84 +229,178 @@ with tab_plans:
             st.toast("Übung angelegt – jetzt einem Plan hinzufügen.", icon="✅")
             st.rerun()
 
-# ------------------------------------------------------------------ Hevy
-with tab_hevy:
-    if not hevy.is_configured():
-        st.info("Mit Hevy trägst du im Gym direkt am Handy ein, und das Dashboard holt die Workouts automatisch. "
-                "Einrichten unter **Einstellungen → Krafttraining (Hevy)**.", icon=":material/smartphone:")
+# ------------------------------------------------------------------ wger
+with tab_wger:
+    if not wger.is_configured():
+        st.info("Mit der kostenlosen App wger trägst du im Gym direkt am Handy ein, und das Dashboard holt die "
+                "Sätze automatisch. Einrichten unter **Einstellungen → Krafttraining (wger)**.",
+                icon=":material/smartphone:")
     else:
-        st.caption("Ablauf: **1.** Übungen zuordnen → **2.** Pläne an Hevy senden → **3.** im Gym die Routine in "
-                   "Hevy starten → **4.** „Jetzt synchronisieren“. Die Gewichtsvorschläge stehen dann schon in Hevy.")
+        st.caption("Ablauf: **1.** Übungen zuordnen → **2.** Pläne an wger senden → **3.** im Gym in der App den "
+                   "Trainingstag starten → **4.** „Jetzt synchronisieren“. Die Gewichtsvorschläge stehen dann in der "
+                   "Routine.")
 
-        # 1. Übungen zuordnen
         st.markdown("**1. Übungen zuordnen**")
-        labels = hevy.template_labels()
-        if st.button("Übungsliste von Hevy laden", icon=":material/download:",
-                     help="Lädt alle Hevy-Übungen und ordnet bekannte Übungen automatisch zu."):
+        if st.button("Übungsliste von wger laden", key="wger_catalog", icon=":material/download:",
+                     help="Lädt alle wger-Übungen und ordnet bekannte Übungen automatisch zu."):
             try:
-                with st.spinner("Lade Übungen aus Hevy …"):
-                    n = hevy.sync_exercise_templates()
-                    mapped = hevy.auto_map_exercises()
-                st.toast(f"{n} Hevy-Übungen geladen, {mapped} automatisch zugeordnet.", icon="✅")
+                with st.spinner("Lade Übungen aus wger …"):
+                    n = wger.sync_exercise_catalog()
+                    mapped = wger.auto_map_exercises()
+                st.toast(f"{n} wger-Übungen geladen, {mapped} automatisch zugeordnet.", icon="✅")
                 st.rerun()
-            except hevy.HevyError as exc:
+            except wger.WgerError as exc:
                 st.error(str(exc))
-        if not labels:
-            st.caption("Noch keine Hevy-Übungen geladen – klick auf „Übungsliste von Hevy laden“.")
+        wger_labels = wger.exercise_labels()
+        if not wger_labels:
+            st.caption("Noch keine wger-Übungen geladen – klick auf „Übungsliste von wger laden“.")
         else:
-            id_to_label = {template_id: label for label, template_id in labels.items()}
-            rows = hevy.mapping_table()
-            table = pd.DataFrame({
-                "id": [r["id"] for r in rows],
-                "Übung": [r["name"] for r in rows],
-                "Im Plan": [bool(r["in_plan"]) for r in rows],
-                "Hevy-Übung": [id_to_label.get(r["hevy_template_id"]) for r in rows],
+            wger_id_to_label = {wid: label for label, wid in wger_labels.items()}
+            wger_rows = wger.mapping_table()
+            wger_table = pd.DataFrame({
+                "id": [r["id"] for r in wger_rows],
+                "Übung": [r["name"] for r in wger_rows],
+                "Im Plan": [bool(r["in_plan"]) for r in wger_rows],
+                "wger-Übung": [wger_id_to_label.get(r["wger_exercise_id"]) for r in wger_rows],
             })
-            edited_map = st.data_editor(
-                table, hide_index=True, key="hevy_mapping", disabled=["Übung", "Im Plan"],
+            edited_wger = st.data_editor(
+                wger_table, hide_index=True, key="wger_mapping", disabled=["Übung", "Im Plan"],
                 column_config={
                     "id": None,
-                    "Hevy-Übung": st.column_config.SelectboxColumn(options=sorted(labels), required=False),
+                    "wger-Übung": st.column_config.SelectboxColumn(options=sorted(wger_labels), required=False),
                 },
             )
-            if st.button("Zuordnung speichern", icon=":material/save:"):
-                chosen_ids = [labels.get(v) if isinstance(v, str) else None for v in edited_map["Hevy-Übung"]]
-                used = [c for c in chosen_ids if c]
-                doubles = sorted({id_to_label[c] for c in used if used.count(c) > 1})
+            st.caption("Tipp: Ins Feld klicken und tippen, um in der Liste zu suchen.")
+            if st.button("Zuordnung speichern", key="wger_save_mapping", icon=":material/save:"):
+                chosen = [wger_labels.get(v) if isinstance(v, str) else None for v in edited_wger["wger-Übung"]]
+                used = [c for c in chosen if c]
+                doubles = sorted({wger_id_to_label[c] for c in used if used.count(c) > 1})
                 if doubles:
-                    st.error("Jede Hevy-Übung darf nur einer Übung zugeordnet sein: " + ", ".join(doubles))
+                    st.error("Jede wger-Übung darf nur einer Übung zugeordnet sein: " + ", ".join(doubles))
                 else:
-                    for exercise_id, template_id in zip(edited_map["id"], chosen_ids):
-                        hevy.set_mapping(int(exercise_id), template_id)
+                    for exercise_id, wger_id in zip(edited_wger["id"], chosen):
+                        wger.set_mapping(int(exercise_id), wger_id)
                     st.toast("Zuordnung gespeichert.", icon="✅")
                     st.rerun()
 
-        # 2. Pläne senden
-        st.markdown("**2. Pläne an Hevy senden**")
+        st.markdown("**2. Pläne an wger senden**")
         for plan in plans:
             exercises = strength.template_exercises(plan["id"])
-            missing = [ex["name"] for ex in exercises if not ex.get("hevy_template_id")]
-            status = "✅ in Hevy" if plan.get("hevy_routine_id") else "⚪ noch nicht gesendet"
+            missing = [ex["name"] for ex in exercises if not ex.get("wger_exercise_id")]
+            status = "✅ in wger" if plan.get("wger_day_id") else "⚪ noch nicht gesendet"
             text = f"{status} · **{plan['name']}** · {len(exercises)} Übungen"
             if missing:
                 text += f" · ohne Zuordnung: {', '.join(missing)}"
             st.markdown(text)
-        if st.button("Pläne an Hevy senden", type="primary", icon=":material/send:", disabled=not plans,
-                     help="Legt jeden Plan als Routine in Hevy an bzw. aktualisiert sie – mit den aktuellen "
-                          "Gewichtsvorschlägen."):
-            with st.spinner("Sende Pläne an Hevy …"):
-                results = hevy.push_routines()
-            for plan_name, ok, message in results:
-                (st.success if ok else st.warning)(f"**{plan_name}:** {message}")
-
-        # 3. Workouts holen
-        st.markdown("**3. Workouts aus Hevy holen**")
-        st.caption("Passiert auch automatisch über „Jetzt synchronisieren“ in der Seitenleiste.")
-        if st.button("Jetzt Workouts laden", icon=":material/sync:"):
+        routine_note = wger.routine_status()
+        if routine_note:
+            st.caption(routine_note)
+        if st.button("Pläne an wger senden", key="wger_push", type="primary", icon=":material/send:",
+                     disabled=not plans,
+                     help="Legt eine Routine mit einem Trainingstag je Plan an, inklusive Gewichtsvorschlägen. "
+                          "Eine früher gesendete Routine wird ersetzt – deine eingetragenen Sätze bleiben erhalten."):
             try:
-                with st.spinner("Lade Workouts aus Hevy …"):
-                    n = hevy.sync_workouts()
-                st.toast(f"{n} Workouts aus Hevy geladen.", icon="✅")
-                st.rerun()
-            except hevy.HevyError as exc:
+                with st.spinner("Sende Pläne an wger …"):
+                    results = wger.push_routines()
+                for plan_name, ok, message in results:
+                    (st.success if ok else st.warning)(f"**{plan_name}:** {message}")
+            except wger.WgerError as exc:
                 st.error(str(exc))
+
+        st.markdown("**3. Einheiten aus wger holen**")
+        st.caption("Passiert auch automatisch über „Jetzt synchronisieren“ in der Seitenleiste.")
+        if st.button("Jetzt Einheiten laden", key="wger_sync", icon=":material/sync:"):
+            try:
+                with st.spinner("Lade Einheiten aus wger …"):
+                    n = wger.sync_workouts()
+                    notes = wger.update_suggestions() if settings.get("wger_auto_update_routines") else []
+                st.toast(f"{n} Einheiten aus wger geladen.", icon="✅")
+                for note in notes:
+                    st.warning(note)
+                if not notes:
+                    st.rerun()
+            except wger.WgerError as exc:
+                st.error(str(exc))
+
+# ------------------------------------------------------------------ Hevy (nur mit Hevy Pro)
+if tab_hevy is not None:
+    with tab_hevy:
+        if not hevy.is_configured():
+            st.info("Mit Hevy trägst du im Gym direkt am Handy ein, und das Dashboard holt die Workouts automatisch. "
+                    "Einrichten unter **Einstellungen → Krafttraining (Hevy)**.", icon=":material/smartphone:")
+        else:
+            st.caption("Ablauf: **1.** Übungen zuordnen → **2.** Pläne an Hevy senden → **3.** im Gym die Routine in "
+                       "Hevy starten → **4.** „Jetzt synchronisieren“. Die Gewichtsvorschläge stehen dann schon in Hevy.")
+
+            # 1. Übungen zuordnen
+            st.markdown("**1. Übungen zuordnen**")
+            labels = hevy.template_labels()
+            if st.button("Übungsliste von Hevy laden", icon=":material/download:",
+                         help="Lädt alle Hevy-Übungen und ordnet bekannte Übungen automatisch zu."):
+                try:
+                    with st.spinner("Lade Übungen aus Hevy …"):
+                        n = hevy.sync_exercise_templates()
+                        mapped = hevy.auto_map_exercises()
+                    st.toast(f"{n} Hevy-Übungen geladen, {mapped} automatisch zugeordnet.", icon="✅")
+                    st.rerun()
+                except hevy.HevyError as exc:
+                    st.error(str(exc))
+            if not labels:
+                st.caption("Noch keine Hevy-Übungen geladen – klick auf „Übungsliste von Hevy laden“.")
+            else:
+                id_to_label = {template_id: label for label, template_id in labels.items()}
+                rows = hevy.mapping_table()
+                table = pd.DataFrame({
+                    "id": [r["id"] for r in rows],
+                    "Übung": [r["name"] for r in rows],
+                    "Im Plan": [bool(r["in_plan"]) for r in rows],
+                    "Hevy-Übung": [id_to_label.get(r["hevy_template_id"]) for r in rows],
+                })
+                edited_map = st.data_editor(
+                    table, hide_index=True, key="hevy_mapping", disabled=["Übung", "Im Plan"],
+                    column_config={
+                        "id": None,
+                        "Hevy-Übung": st.column_config.SelectboxColumn(options=sorted(labels), required=False),
+                    },
+                )
+                if st.button("Zuordnung speichern", icon=":material/save:"):
+                    chosen_ids = [labels.get(v) if isinstance(v, str) else None for v in edited_map["Hevy-Übung"]]
+                    used = [c for c in chosen_ids if c]
+                    doubles = sorted({id_to_label[c] for c in used if used.count(c) > 1})
+                    if doubles:
+                        st.error("Jede Hevy-Übung darf nur einer Übung zugeordnet sein: " + ", ".join(doubles))
+                    else:
+                        for exercise_id, template_id in zip(edited_map["id"], chosen_ids):
+                            hevy.set_mapping(int(exercise_id), template_id)
+                        st.toast("Zuordnung gespeichert.", icon="✅")
+                        st.rerun()
+
+            # 2. Pläne senden
+            st.markdown("**2. Pläne an Hevy senden**")
+            for plan in plans:
+                exercises = strength.template_exercises(plan["id"])
+                missing = [ex["name"] for ex in exercises if not ex.get("hevy_template_id")]
+                status = "✅ in Hevy" if plan.get("hevy_routine_id") else "⚪ noch nicht gesendet"
+                text = f"{status} · **{plan['name']}** · {len(exercises)} Übungen"
+                if missing:
+                    text += f" · ohne Zuordnung: {', '.join(missing)}"
+                st.markdown(text)
+            if st.button("Pläne an Hevy senden", type="primary", icon=":material/send:", disabled=not plans,
+                         help="Legt jeden Plan als Routine in Hevy an bzw. aktualisiert sie – mit den aktuellen "
+                              "Gewichtsvorschlägen."):
+                with st.spinner("Sende Pläne an Hevy …"):
+                    results = hevy.push_routines()
+                for plan_name, ok, message in results:
+                    (st.success if ok else st.warning)(f"**{plan_name}:** {message}")
+
+            # 3. Workouts holen
+            st.markdown("**3. Workouts aus Hevy holen**")
+            st.caption("Passiert auch automatisch über „Jetzt synchronisieren“ in der Seitenleiste.")
+            if st.button("Jetzt Workouts laden", icon=":material/sync:"):
+                try:
+                    with st.spinner("Lade Workouts aus Hevy …"):
+                        n = hevy.sync_workouts()
+                    st.toast(f"{n} Workouts aus Hevy geladen.", icon="✅")
+                    st.rerun()
+                except hevy.HevyError as exc:
+                    st.error(str(exc))

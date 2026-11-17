@@ -8,7 +8,7 @@ Persönliches Dashboard, das dein Triathlon-Training steuert – läuft lokal au
 | **Trainingsgalerie** | 162 Einheiten für Rad, Laufen, Schwimmen und Koppeltraining in 11 Kategorien (Regeneration bis Sprint), jede mit Intensitätsprofil und deinen Zielwerten (Watt, Pace, CSS) |
 | **Ausdauer** | Alle Strava-Aktivitäten mit Trainingsbelastung (TSS), Umfang pro Woche |
 | **Regeneration** | HRV mit persönlichem Normalbereich, Ruhepuls, Schlaf, Gewicht (Garmin über intervals.icu) |
-| **Krafttraining** | Rotation (Brust/Rücken → Arme → Beine), Vorschläge fürs nächste Gewicht, Fortschritt – im Gym per Hevy-App am Handy |
+| **Krafttraining** | Rotation (Brust/Rücken → Arme → Beine), Vorschläge fürs nächste Gewicht, Fortschritt – im Gym per wger-App am Handy |
 | **Ernährung** | Kalorien & Makros, Lebensmittel-Suche (Open Food Facts), Ziele passen sich ans Training an |
 | **Ziele** | Phasen bis zum Wettkampf mit Fitness-Prognose, eigene Ziele, teils automatisch gemessen (z. B. Fitness, Lauf-km pro Woche, Gewicht) |
 
@@ -58,21 +58,26 @@ Garmin hat keine offizielle Schnittstelle für Privatpersonen. Der stabile Weg f
 
 Die HRV-Ampel braucht mindestens 14 Nächte Daten, bevor sie deinen Normalbereich kennt.
 
-## 4. Krafttraining mit Hevy (Handy im Gym)
+## 4. Krafttraining mit wger (Handy im Gym, kostenlos)
 
-Im Gym trägst du Gewicht und Wiederholungen in der App **Hevy** ein, das Dashboard holt die Workouts
-automatisch. Die Hevy-API gibt es nur mit **Hevy Pro**.
+Im Gym trägst du Gewicht und Wiederholungen in der kostenlosen Open-Source-App **wger** ein
+(iPhone und Android), das Dashboard holt die Sätze automatisch.
 
-1. Auf [hevy.com/settings?developer](https://hevy.com/settings?developer) einen **API Key** erzeugen.
-2. Im Dashboard unter **Einstellungen → Krafttraining (Hevy)** eintragen → *Verbindung testen*.
-3. **Krafttraining → Hevy:** *Übungsliste von Hevy laden* (ordnet bekannte Übungen automatisch zu),
+1. Konto auf [wger.de](https://wger.de) anlegen, App *wger Workout Manager* installieren und anmelden.
+2. Auf [wger.de/de/user/api-key](https://wger.de/de/user/api-key) einen **API-Key** erzeugen.
+3. Im Dashboard unter **Einstellungen → Krafttraining (wger)** eintragen → *Verbindung testen*.
+4. **Krafttraining → wger:** *Übungsliste von wger laden* (ordnet bekannte Übungen automatisch zu),
    fehlende Zuordnungen in der Tabelle auswählen → *Zuordnung speichern*.
-4. **Pläne an Hevy senden:** Jeder Plan wird eine Routine in Hevy – mit dem vorgeschlagenen Gewicht
-   und den Wiederholungen aus der doppelten Progression.
-5. Im Gym die Routine in Hevy starten. Danach links **„Jetzt synchronisieren“**: Verlauf, Fortschritt,
-   Rotation und Belastung werden aktualisiert und die Routinen bekommen die neuen Vorschläge.
+5. **Pläne an wger senden:** Es entsteht die Routine „Triathlon-Kraft“ mit einem Trainingstag je Plan,
+   inklusive Sätzen, Ziel-Wiederholungen, Gewichtsvorschlag und 90 s Pause. Der nächste Tag kommt erst,
+   wenn der aktuelle eingetragen ist – wie die Rotation im Dashboard.
+6. Im Gym in der App den Trainingstag starten und Sätze eintragen. Danach links **„Jetzt synchronisieren“**:
+   Verlauf, Fortschritt, Rotation und Belastung werden aktualisiert, die Routine bekommt neue Vorschläge.
 
-Aufwärmsätze und Übungen nur auf Zeit (z. B. Plank) werden nicht übernommen.
+Sätze auf Zeit oder Strecke werden nicht übernommen, Pfund werden in kg umgerechnet. Eine wger-Routine
+gilt höchstens 120 Tage; das Dashboard erinnert rechtzeitig daran, die Pläne neu zu senden.
+
+Mit **Hevy Pro** geht dasselbe auch mit Hevy (Einstellungen → „Alternativ: Hevy“).
 
 ## 5. Schwellenwerte eintragen (wichtig für gute Empfehlungen)
 
@@ -131,4 +136,4 @@ pytest
 ```
 
 Aufbau: `app.py` (Einstieg/Navigation), `views/` (Seiten), `triathlon/` (Logik: `load.py` Belastung,
-`recovery.py` Ampel, `plan.py` Periodisierung, `library.py` Trainingsgalerie, `strava.py`/`intervals.py`/`hevy.py` Datenquellen).
+`recovery.py` Ampel, `plan.py` Periodisierung, `library.py` Trainingsgalerie, `strava.py`/`intervals.py`/`wger.py`/`hevy.py` Datenquellen).

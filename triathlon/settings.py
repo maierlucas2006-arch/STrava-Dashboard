@@ -50,6 +50,12 @@ DEFAULTS: dict[str, Any] = {
     "hevy_api_key": "",
     "hevy_last_sync": None,            # UTC-Zeitpunkt des letzten Hevy-Abgleichs
     "hevy_auto_update_routines": True,  # gesendete Pläne nach jedem Sync aktualisieren
+    "wger_api_key": "",
+    "wger_url": "https://wger.de",
+    "wger_auto_update_routines": True,  # Gewichtsvorschläge nach jedem Sync in die Routine schreiben
+    "wger_routine_id": None,            # vom Dashboard angelegte Routine
+    "wger_routine_end": None,
+    "wger_last_sync": None,
 }
 
 ENV_OVERRIDES = {
@@ -59,6 +65,7 @@ ENV_OVERRIDES = {
     "intervals_athlete_id": "INTERVALS_ATHLETE_ID",
     "intervals_api_key": "INTERVALS_API_KEY",
     "hevy_api_key": "HEVY_API_KEY",
+    "wger_api_key": "WGER_API_KEY",
 }
 
 RACE_DISTANCES = ["Sprint", "Olympisch", "Mitteldistanz", "Langdistanz"]

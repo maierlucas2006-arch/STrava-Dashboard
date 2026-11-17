@@ -2,7 +2,7 @@ from datetime import date
 
 import streamlit as st
 
-from triathlon import hevy, intervals, settings, strava, ui
+from triathlon import hevy, intervals, settings, strava, ui, wger
 from triathlon.settings import DEFAULT_TARGET_CTL, RACE_DISTANCES
 from triathlon.units import fmt_pace, parse_pace
 
@@ -81,51 +81,89 @@ if intervals.is_configured() and st.button("Verbindung testen", icon=":material/
     except intervals.IntervalsError as exc:
         st.error(str(exc))
 
-# ------------------------------------------------------------------ Hevy
-st.subheader("Krafttraining (Hevy)")
-with st.expander("So richtest du Hevy ein", expanded=not hevy.is_configured()):
+# ------------------------------------------------------------------ Krafttraining-App
+st.subheader("Krafttraining (wger)")
+with st.expander("So richtest du wger ein (kostenlos)", expanded=not wger.is_configured()):
     st.markdown(
         """
-1. Die Hevy-API gibt es nur mit **Hevy Pro** (Abo in der Hevy-App).
-2. Auf **[hevy.com/settings?developer](https://hevy.com/settings?developer)** anmelden und einen
-   **API Key** erzeugen.
+1. Konto auf **[wger.de](https://wger.de)** anlegen und die App **wger Workout Manager** installieren
+   (iPhone und Android, kostenlos). In der App mit demselben Konto anmelden.
+2. Auf **[wger.de/de/user/api-key](https://wger.de/de/user/api-key)** einen **API-Key** erzeugen.
 3. Key unten eintragen, speichern und **„Verbindung testen“** klicken.
-4. Unter **Krafttraining → Hevy** deine Übungen zuordnen und die Pläne an Hevy senden.
-   Danach im Gym einfach die Routine in Hevy starten – „Jetzt synchronisieren“ holt die Workouts ins Dashboard.
+4. Unter **Krafttraining → wger** deine Übungen zuordnen und die Pläne an wger senden.
+   Im Gym in der App den Trainingstag starten und Sätze eintragen – „Jetzt synchronisieren“ holt sie ins Dashboard.
         """
     )
-with st.form("hevy_keys"):
-    hevy_key = st.text_input("Hevy API Key", value=settings.get("hevy_api_key") or "", type="password")
-    auto_update = st.checkbox(
-        "Gesendete Pläne nach jedem Sync aktualisieren",
-        value=bool(settings.get("hevy_auto_update_routines")),
-        help="Schreibt die neuen Gewichtsvorschläge in deine Hevy-Routinen. Änderungen, die du direkt in Hevy "
-             "an diesen Routinen machst, werden dabei überschrieben.",
+with st.form("wger_keys"):
+    c1, c2 = st.columns([3, 2])
+    wger_key = c1.text_input("wger API-Key", value=settings.get("wger_api_key") or "", type="password")
+    wger_url = c2.text_input("Server", value=settings.get("wger_url") or wger.DEFAULT_URL,
+                             help="Nur ändern, wenn du einen eigenen wger-Server betreibst.")
+    wger_auto = st.checkbox(
+        "Gewichtsvorschläge nach jedem Sync in die Routine schreiben",
+        value=bool(settings.get("wger_auto_update_routines")),
+        help="Aktualisiert Gewicht und Ziel-Wiederholungen in der Routine, die das Dashboard angelegt hat.",
     )
     if st.form_submit_button("Speichern"):
-        new_key = hevy_key.strip()
-        if new_key != (settings.get("hevy_api_key") or ""):
-            settings.set("hevy_last_sync", None)  # neues Konto → beim nächsten Sync alles laden
-        settings.set_many({"hevy_api_key": new_key, "hevy_auto_update_routines": auto_update})
+        settings.set_many({"wger_api_key": wger_key.strip(), "wger_url": wger_url.strip() or wger.DEFAULT_URL,
+                           "wger_auto_update_routines": wger_auto})
         st.rerun()
-if hevy.is_configured():
+if wger.is_configured():
     c1, c2, c3 = st.columns(3)
-    if c1.button("Verbindung testen", key="hevy_test", icon=":material/network_check:"):
+    if c1.button("Verbindung testen", key="wger_test", icon=":material/network_check:"):
         try:
-            st.success(f"Verbunden mit: {hevy.test_connection()}")
-        except hevy.HevyError as exc:
+            st.success(f"Verbunden mit: {wger.test_connection()}")
+        except wger.WgerError as exc:
             st.error(str(exc))
-    if c2.button("Alle Workouts neu laden", key="hevy_full", icon=":material/history:"):
+    if c2.button("Einheiten neu laden", key="wger_full", icon=":material/history:"):
         try:
-            with st.spinner("Lade Workouts aus Hevy …"):
-                n = hevy.sync_workouts(full=True)
-            st.toast(f"{n} Workouts aus Hevy geladen.", icon="✅")
-        except hevy.HevyError as exc:
+            with st.spinner("Lade Einheiten aus wger …"):
+                n = wger.sync_workouts(full=True)
+            st.toast(f"{n} Einheiten aus wger geladen.", icon="✅")
+        except wger.WgerError as exc:
             st.error(str(exc))
-    if c3.button("Verbindung trennen", key="hevy_disconnect", icon=":material/link_off:",
-                 help="Löscht nur den API-Key. Importierte Workouts bleiben erhalten."):
-        hevy.disconnect()
+    if c3.button("Verbindung trennen", key="wger_disconnect", icon=":material/link_off:",
+                 help="Löscht nur den API-Key. Importierte Einheiten bleiben erhalten."):
+        wger.disconnect()
         st.rerun()
+
+with st.expander("Alternativ: Hevy (nur mit Hevy Pro)", expanded=hevy.is_configured()):
+    st.markdown(
+        "Die Hevy-API gibt es nur mit **Hevy Pro**. Den API-Key erzeugst du auf "
+        "**[hevy.com/settings?developer](https://hevy.com/settings?developer)**."
+    )
+    with st.form("hevy_keys"):
+        hevy_key = st.text_input("Hevy API Key", value=settings.get("hevy_api_key") or "", type="password")
+        auto_update = st.checkbox(
+            "Gesendete Pläne nach jedem Sync aktualisieren",
+            value=bool(settings.get("hevy_auto_update_routines")),
+            help="Schreibt die neuen Gewichtsvorschläge in deine Hevy-Routinen. Änderungen, die du direkt in Hevy "
+                 "an diesen Routinen machst, werden dabei überschrieben.",
+        )
+        if st.form_submit_button("Speichern"):
+            new_key = hevy_key.strip()
+            if new_key != (settings.get("hevy_api_key") or ""):
+                settings.set("hevy_last_sync", None)  # neues Konto → beim nächsten Sync alles laden
+            settings.set_many({"hevy_api_key": new_key, "hevy_auto_update_routines": auto_update})
+            st.rerun()
+    if hevy.is_configured():
+        c1, c2, c3 = st.columns(3)
+        if c1.button("Verbindung testen", key="hevy_test", icon=":material/network_check:"):
+            try:
+                st.success(f"Verbunden mit: {hevy.test_connection()}")
+            except hevy.HevyError as exc:
+                st.error(str(exc))
+        if c2.button("Alle Workouts neu laden", key="hevy_full", icon=":material/history:"):
+            try:
+                with st.spinner("Lade Workouts aus Hevy …"):
+                    n = hevy.sync_workouts(full=True)
+                st.toast(f"{n} Workouts aus Hevy geladen.", icon="✅")
+            except hevy.HevyError as exc:
+                st.error(str(exc))
+        if c3.button("Verbindung trennen", key="hevy_disconnect", icon=":material/link_off:",
+                     help="Löscht nur den API-Key. Importierte Workouts bleiben erhalten."):
+            hevy.disconnect()
+            st.rerun()
 
 # ------------------------------------------------------------------ Profil
 st.subheader("Athletenprofil & Schwellenwerte")

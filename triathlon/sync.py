@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from triathlon import db, hevy, intervals, settings, strava
+from triathlon import db, hevy, intervals, settings, strava, wger
 
 
 def sync_all(full: bool = False) -> list[tuple[str, bool, str]]:
@@ -28,6 +28,16 @@ def sync_all(full: bool = False) -> list[tuple[str, bool, str]]:
             results.append(("intervals.icu", False, str(exc)))
     else:
         results.append(("intervals.icu", False, "nicht eingerichtet"))
+
+    if wger.is_configured():
+        try:
+            n = wger.sync_workouts(full=full)
+            results.append(("wger", True, f"{n} Krafteinheiten geladen"))
+            if settings.get("wger_auto_update_routines"):
+                for note in wger.update_suggestions():
+                    results.append(("wger", False, note))
+        except wger.WgerError as exc:
+            results.append(("wger", False, str(exc)))
 
     if hevy.is_configured():
         try:

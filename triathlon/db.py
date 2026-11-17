@@ -131,6 +131,24 @@ CREATE TABLE IF NOT EXISTS hevy_exercise_templates (
     is_custom             INTEGER NOT NULL DEFAULT 0
 );
 
+-- Übungsliste aus wger (Zwischenspeicher für die Zuordnung eigener Übungen)
+CREATE TABLE IF NOT EXISTS wger_exercises (
+    id       INTEGER PRIMARY KEY,                 -- Übungs-ID in wger
+    name     TEXT NOT NULL,                       -- Anzeigename (deutsch, sonst englisch)
+    name_de  TEXT,
+    name_en  TEXT
+);
+
+-- Vom Dashboard in wger angelegte Routinen-Einträge (für Gewichts-Updates)
+CREATE TABLE IF NOT EXISTS wger_entries (
+    template_id       INTEGER NOT NULL REFERENCES workout_templates(id) ON DELETE CASCADE,
+    exercise_id       INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+    slot_entry_id     INTEGER NOT NULL,
+    reps_config_id    INTEGER,
+    weight_config_id  INTEGER,
+    PRIMARY KEY (template_id, exercise_id)
+);
+
 CREATE TABLE IF NOT EXISTS goals (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     title          TEXT NOT NULL,
@@ -196,6 +214,10 @@ MIGRATIONS: list[tuple[str, str, str]] = [
     ("exercises", "from_hevy", "INTEGER NOT NULL DEFAULT 0"),   # 1 = beim Hevy-Import angelegt
     ("workout_templates", "hevy_routine_id", "TEXT"),           # Routine in Hevy zu diesem Plan
     ("strength_sessions", "hevy_id", "TEXT"),                   # Workout-ID in Hevy
+    ("exercises", "wger_exercise_id", "INTEGER"),               # zugeordnete wger-Übung
+    ("exercises", "from_wger", "INTEGER NOT NULL DEFAULT 0"),   # 1 = beim wger-Import angelegt
+    ("workout_templates", "wger_day_id", "INTEGER"),            # Trainingstag in der wger-Routine
+    ("strength_sessions", "wger_id", "TEXT"),                   # Einheit in wger (Session-ID)
 ]
 
 
@@ -205,6 +227,7 @@ def _migrate(con: sqlite3.Connection) -> None:
         if column not in columns:
             con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
     con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_strength_sessions_hevy ON strength_sessions(hevy_id)")
+    con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_strength_sessions_wger ON strength_sessions(wger_id)")
 
 
 def init_db() -> None:
