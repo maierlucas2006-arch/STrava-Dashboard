@@ -47,8 +47,9 @@ Den Login übernimmt Streamlit (`st.login`, OpenID Connect) mit Google-Konten.
 3. **Client:** Unter *Clients → Client erstellen* den Typ **Webanwendung** wählen, als autorisierte
    Weiterleitungs-URI `http://localhost:8501/oauth2callback` eintragen und **Client-ID** und
    **Clientschlüssel** kopieren (der Schlüssel wird nur einmal angezeigt).
-4. **Secrets:** `.streamlit/secrets.example.toml` nach `.streamlit/secrets.toml` kopieren und die Werte
-   eintragen. Den `cookie_secret` erzeugst du im Terminal mit
+4. **Secrets:** Am einfachsten Rechtsklick auf **`setup_login.py`** → *Run* und Client-ID und Clientschlüssel
+   einfügen – das Skript schreibt `.streamlit/secrets.toml` samt Cookie-Schlüssel. Alternativ
+   `.streamlit/secrets.example.toml` nach `.streamlit/secrets.toml` kopieren und die Werte eintragen. Den `cookie_secret` erzeugst du im Terminal mit
    `python -c "import secrets; print(secrets.token_hex(32))"`. `secrets.toml` steht in `.gitignore` und
    landet nie im Git.
 5. `pip install -r requirements.txt` (neu: `Authlib`), dann `start.py` starten und **Mit Google anmelden**.

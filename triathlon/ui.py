@@ -52,7 +52,8 @@ def require_login() -> None:
         return
     if "is_logged_in" not in st.user:
         st.error("Die Anmeldung ist noch nicht eingerichtet: In `.streamlit/secrets.toml` fehlt der Abschnitt "
-                 "`[auth]`. Vorlage: `.streamlit/secrets.example.toml` (Anleitung in der README).",
+                 "`[auth]`. In PyCharm `setup_login.py` ausführen und Client-ID und Clientschlüssel von Google einfügen, "
+                 "dann das Dashboard neu starten.",
                  icon=":material/lock:")
         st.stop()
     if not st.user.is_logged_in:
