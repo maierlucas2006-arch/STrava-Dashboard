@@ -52,7 +52,8 @@ Den Login übernimmt Streamlit (`st.login`, OpenID Connect) mit Google-Konten.
    `.streamlit/secrets.example.toml` nach `.streamlit/secrets.toml` kopieren und die Werte eintragen. Den `cookie_secret` erzeugst du im Terminal mit
    `python -c "import secrets; print(secrets.token_hex(32))"`. `secrets.toml` steht in `.gitignore` und
    landet nie im Git.
-5. `pip install -r requirements.txt` (neu: `Authlib`), dann `start.py` starten und **Mit Google anmelden**.
+5. `pip install -r requirements.txt` (neu: `streamlit[auth]` mit Authlib und httpx), dann `start.py` starten und
+   **Mit Google anmelden**.
 6. **Bisherige Daten:** Lagen schon Daten in `data/dashboard.db`, erscheint nach der Anmeldung unter
    *Einstellungen* der Knopf **In mein Konto übernehmen** – einmal klicken, fertig.
 
