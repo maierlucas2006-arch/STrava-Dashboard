@@ -89,8 +89,26 @@ def inject_style() -> None:
     st.html(visual.style_html(theme_type))
 
 
+PRIVACY_PAGE = "datenschutz"   # öffentlich erreichbar unter <Adresse>/?seite=datenschutz
+
+
+def privacy_page() -> None:
+    """Datenschutzhinweis ohne Anmeldung – Google verlangt dafür eine öffentliche Adresse."""
+    if st.query_params.get("seite") != PRIVACY_PAGE:
+        return
+    info = app_info()
+    page_header("Datenschutzhinweis", "Was mit deinen Daten im Triathlon Dashboard passiert.")
+    with st.container(border=True):
+        st.markdown(privacy.notice(info.get("operator"), info.get("contact"), info.get("location")))
+    if st.button("Zur Anmeldung", icon=":material/login:"):
+        st.query_params.clear()
+        st.rerun()
+    st.stop()
+
+
 def require_login() -> None:
     """Zeigt die Anmeldeseite, bis jemand angemeldet ist, und wählt dann dessen Datenbank."""
+    privacy_page()
     if auth.demo_mode():
         db.use_database(None)
         return
@@ -104,6 +122,7 @@ def require_login() -> None:
         page_header("Triathlon Dashboard",
                     "Training, Erholung und Ernährung an einem Ort. Melde dich an – deine Daten siehst nur du.")
         st.button("Mit Google anmelden", type="primary", icon=":material/login:", on_click=st.login)
+        st.caption(f"[Datenschutzhinweis](?seite={PRIVACY_PAGE})")
         st.stop()
     path = auth.database_for(st.user.get("iss", ""), st.user.get("sub", ""))
     try:

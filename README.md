@@ -16,7 +16,7 @@ Dashboard, das Triathlon-Training steuert – lokal auf deinem PC oder online f�
 | **Tageswerte** | Alle Kennzahlen in einer Zeile pro Tag, als CSV für Excel |
 | **Einstellungen** | Verbindungen, Profil, Schwellen – und unter *Deine Daten*: alles herunterladen (ZIP), Datenschutzhinweis, Konto löschen |
 
-Jede Person meldet sich mit ihrem Google-Konto an und arbeitet mit ihren eigenen Daten (eine Datei pro Konto unter `data/users/`). Passwörter speichert das Dashboard nicht. Vor der ersten Nutzung erscheint ein Datenschutzhinweis mit Einwilligung; beim Öffnen holt das Dashboard neue Daten automatisch, wenn der letzte Abgleich mehr als 3 Stunden her ist.
+Jede Person meldet sich mit ihrem Google-Konto an und arbeitet mit ihren eigenen Daten (eine Datei pro Konto unter `data/users/`). Passwörter speichert das Dashboard nicht. Vor der ersten Nutzung erscheint ein Datenschutzhinweis mit Einwilligung (öffentlich auch unter `<Adresse>/?seite=datenschutz`, z. B. für den Google-Zustimmungsbildschirm); beim Öffnen holt das Dashboard neue Daten automatisch, wenn der letzte Abgleich mehr als 3 Stunden her ist.
 
 ---
 
