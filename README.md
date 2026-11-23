@@ -203,7 +203,10 @@ stehen in den USA, und es gibt rund 1 GB Arbeitsspeicher.
    für diesen Bucket, *Read and Write*. Notieren: `keyID`, `applicationKey` und den **S3-Endpoint** des Buckets.
 2. **Streamlit:** Auf [share.streamlit.io](https://share.streamlit.io) mit GitHub anmelden → *Create app* →
    Repo `STrava-Dashboard`, Branch, Datei `app.py`, eine App-Adresse wählen (z. B. `tri-dashboard.streamlit.app`).
-   Unter *Advanced settings* Python 3.12 oder neuer und diese **Secrets** einfügen:
+   Unter *Advanced settings* Python 3.12 oder neuer und die **Secrets** einfügen. Am einfachsten erzeugt sie
+   `cloud_secrets.py` (Rechtsklick → *Run*): Es übernimmt Google und Strava aus deiner lokalen `secrets.toml`,
+   fragt Adresse und Backblaze-Schlüssel ab und schreibt `.streamlit/cloud-secrets.toml` zum Kopieren. So sieht
+   das Ergebnis aus:
 
    ```toml
    [auth]

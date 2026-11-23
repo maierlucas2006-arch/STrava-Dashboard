@@ -16,3 +16,5 @@ venv/
 
 # Zugangsdaten für den Login (niemals ins Git)
 .streamlit/secrets.toml
+
+.streamlit/cloud-secrets.toml
