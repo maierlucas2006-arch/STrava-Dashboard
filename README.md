@@ -2,6 +2,8 @@
 
 Dashboard, das Triathlon-Training steuert – lokal auf deinem PC oder online für mehrere Personen.
 
+**Live:** <https://triathlon-trainingsdashboard.streamlit.app> (Streamlit Community Cloud, Konten gesichert in Backblaze B2)
+
 | Bereich | Was es macht |
 |---|---|
 | **Übersicht** | Morgen-Check (4 Fragen), Ampel mit passenden Kategorien für heute, die letzten 14 Tage als Intensitätsprofil, Fitness/Ermüdung/Form, HRV, Ruhepuls, Schlaf, Wochenfortschritt |
