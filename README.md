@@ -201,7 +201,8 @@ Volume. Die Vorlagen in `deploy/` gehen vom Linux-Server aus:
 3. **Secrets:** im Projektordner `.venv/bin/python setup_login.py` starten und als Adresse
    `https://tri.deine-domain.de` eingeben. Das Skript zeigt dir, was du bei Google und Strava eintragen musst:
    - **Google Cloud → Clients:** Weiterleitungs-URI `https://tri.deine-domain.de/oauth2callback` hinzufügen.
-     Vorher einen **neuen Clientschlüssel** erzeugen und den alten löschen (der alte war auf einem Screenshot).
+     War der Clientschlüssel je irgendwo sichtbar (z. B. auf einem Screenshot), vorher einen **neuen** erzeugen
+     und den alten löschen.
    - **Google Cloud → Zielgruppe:** *App veröffentlichen*, sonst kommen nur eingetragene Testnutzer rein. Für die
      reine Anmeldung (Name, E-Mail) verlangt Google keine Prüfung; App-Name und Logo zeigt Google aber erst nach
      einer Markenprüfung an.
