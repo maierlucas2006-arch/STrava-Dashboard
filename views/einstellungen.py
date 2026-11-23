@@ -283,7 +283,7 @@ c1.download_button("Alles herunterladen (ZIP)", data=export.all_data_zip(account
 c2.page_link("views/daten.py", label="Tageswerte ansehen und als CSV laden", icon=":material/table_chart:")
 with st.expander("Datenschutzhinweis"):
     info = ui.app_info()
-    st.markdown(privacy.notice(info.get("operator"), info.get("contact")))
+    st.markdown(privacy.notice(info.get("operator"), info.get("contact"), info.get("location")))
     consent = settings.get("privacy_consent")
     if consent:
         st.caption(f"Eingewilligt am {datetime.fromisoformat(consent):%d.%m.%Y um %H:%M} Uhr.")

@@ -1,15 +1,16 @@
 """Datenschutzhinweis, der vor der ersten Nutzung angezeigt wird.
 
-Betreiber und Kontakt kommen aus ``.streamlit/secrets.toml``, Abschnitt ``[app]``
-(``operator`` und ``contact``). Der Text ist eine Vorlage für ein privates bzw.
+Betreiber, Kontakt und Speicherort kommen aus ``.streamlit/secrets.toml``, Abschnitt ``[app]``
+(``operator``, ``contact``, ``location``). Der Text ist eine Vorlage für ein privates bzw.
 studentisches Projekt – vor einem öffentlichen Angebot rechtlich prüfen lassen.
 """
 from __future__ import annotations
 
 
-def notice(operator: str | None = None, contact: str | None = None) -> str:
+def notice(operator: str | None = None, contact: str | None = None, location: str | None = None) -> str:
     who = operator or "die Person, die dieses Dashboard betreibt"
     reach = f" Kontakt: {contact}." if contact else ""
+    where = location or "auf dem Server des Dashboards"
     return f"""
 **Wer ist verantwortlich?** {who}.{reach}
 
@@ -23,8 +24,7 @@ nur angezeigt, nicht gespeichert. Ein Teil davon sind **Gesundheitsdaten**.
 **Wofür?** Nur für die Auswertungen in diesem Dashboard: Belastung, Erholung, Ernährung und die
 Empfehlung für den Tag. Keine Werbung, kein Verkauf, keine Weitergabe.
 
-**Wo?** In einer eigenen Datenbankdatei für dein Konto auf dem Server des Dashboards. Andere
-Konten haben keinen Zugriff. Daten werden nur dann bei Strava, intervals.icu, wger, Hevy oder Open
+**Wo?** In einer eigenen Datenbankdatei für dein Konto {where}. Andere Konten haben keinen Zugriff. Daten werden nur dann bei Strava, intervals.icu, wger, Hevy oder Open
 Food Facts abgerufen, wenn du den Dienst verbindest bzw. dort suchst; die Anmeldung läuft über Google.
 
 **Wie lange?** Bis du dein Konto löschst. Unter *Einstellungen → Deine Daten* kannst du jederzeit

@@ -183,16 +183,59 @@ pytest
 
 Aufbau: `app.py` (Einstieg/Navigation), `views/` (Seiten), `triathlon/` (Logik: `load.py` Belastung und Monotonie,
 `recovery.py` Ampel und Morgen-Check, `nutrition.py` Ernährung und Energieverfügbarkeit, `plan.py` Periodisierung,
-`library.py` Trainingsgalerie, `auth.py` Konten, `export.py` Datenexport, `privacy.py` Datenschutzhinweis,
+`library.py` Trainingsgalerie, `auth.py` Konten, `storage.py` Sicherung beim Hoster, `export.py` Datenexport, `privacy.py` Datenschutzhinweis,
 `strava.py`/`intervals.py`/`wger.py`/`hevy.py` Datenquellen), `serve.py` (Start beim Hoster), `deploy/` (Server-Vorlagen).
 
 ## Online stellen (Deployment)
 
-Das Dashboard braucht einen Rechner, der dauerhaft läuft und **Dateien behält** – jedes Konto ist eine
-SQLite-Datei. Plattformen ohne dauerhaften Speicher (z. B. Streamlit Community Cloud) verlieren bei jedem
-Neustart alle Konten. Zwei Wege:
+Jedes Konto ist eine SQLite-Datei. Der Hoster muss sie also dauerhaft behalten – oder das Dashboard sichert sie
+nach jeder Änderung in einen Cloud-Speicher und holt sie beim nächsten Start zurück (`triathlon/storage.py`).
 
-### Weg A: Railway (am einfachsten, kein Server-Wissen nötig)
+### Weg A: kostenlos – Streamlit Community Cloud + Backblaze B2
+
+Streamlit Community Cloud betreibt das Dashboard, Backblaze B2 (bis 10 GB kostenlos, ohne Kreditkarte) sichert
+die Konten. Grenzen: Nach 12 Stunden ohne Besuch schläft die App ein und wacht per Knopf wieder auf, die Server
+stehen in den USA, und es gibt rund 1 GB Arbeitsspeicher.
+
+1. **Backblaze:** Konto auf [backblaze.com](https://www.backblaze.com/sign-up/cloud-storage) anlegen (Region
+   *EU Central*). *Buckets → Create a Bucket:* privat. Unter *Lifecycle Settings* **„Keep only the last version of
+   the file“** wählen, sonst sammelt sich jede Sicherung an. *Application Keys → Add a New Application Key:* nur
+   für diesen Bucket, *Read and Write*. Notieren: `keyID`, `applicationKey` und den **S3-Endpoint** des Buckets.
+2. **Streamlit:** Auf [share.streamlit.io](https://share.streamlit.io) mit GitHub anmelden → *Create app* →
+   Repo `STrava-Dashboard`, Branch, Datei `app.py`, eine App-Adresse wählen (z. B. `tri-dashboard.streamlit.app`).
+   Unter *Advanced settings* Python 3.12 oder neuer und diese **Secrets** einfügen:
+
+   ```toml
+   [auth]
+   redirect_uri = "https://tri-dashboard.streamlit.app/oauth2callback"
+   cookie_secret = "ZUFALLSWERT"   # python -c "import secrets; print(secrets.token_hex(32))"
+   client_id = "….apps.googleusercontent.com"
+   client_secret = "GOOGLE-CLIENTSCHLÜSSEL"
+   server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
+
+   [storage]
+   endpoint_url = "https://s3.eu-central-003.backblazeb2.com"   # S3-Endpoint aus Schritt 1
+   bucket = "BUCKET-NAME"
+   key_id = "KEY-ID"
+   application_key = "APPLICATION-KEY"
+
+   [strava]   # optional: deine Strava-App für alle
+   client_id = "12345"
+   client_secret = "STRAVA-SECRET"
+   redirect_uri = "https://tri-dashboard.streamlit.app/"
+
+   [app]      # optional: für den Datenschutzhinweis
+   operator = "Vorname Nachname"
+   contact = "name@example.org"
+   location = "bei Streamlit Community Cloud (Server in den USA), gesichert bei Backblaze B2 (EU)"
+   ```
+3. **Google Cloud → Clients:** Weiterleitungs-URI `https://tri-dashboard.streamlit.app/oauth2callback` hinzufügen.
+4. **Strava → strava.com/settings/api:** *Authorization Callback Domain* `tri-dashboard.streamlit.app`, Kapazität
+   auf bis zu 10 Personen erweitern.
+5. *Deploy* – danach die Adresse öffnen und **Mit Google anmelden**. Jeder Push auf den Branch wird automatisch
+   übernommen.
+
+### Weg B: Railway (ca. 5 $ im Monat, dauerhaftes Volume)
 
 Railway baut das Dashboard direkt aus dem GitHub-Repo und gibt ihm eine HTTPS-Adresse. Für ein dauerhaftes
 Volume brauchst du den Hobby-Plan.
@@ -223,7 +266,7 @@ Volume brauchst du den Hobby-Plan.
 
 **Updates:** Jeder Push auf den gewählten Branch wird automatisch neu gebaut; die Konten auf dem Volume bleiben.
 
-### Weg B: eigener Linux-Server
+### Weg C: eigener Linux-Server
 
 Ein kleiner Linux-Server (Ubuntu) mit eigener Domain. Mehr Handarbeit, dafür volle Kontrolle. Die Vorlagen in
 `deploy/` gehen von diesem Weg aus:
@@ -249,7 +292,7 @@ Ein kleiner Linux-Server (Ubuntu) mit eigener Domain. Mehr Handarbeit, dafür vo
 **Update einspielen:** im Projektordner `git pull`, `.venv/bin/pip install -r requirements.txt`,
 `sudo systemctl restart triathlon-dashboard`. Die Konten liegen in `TRI_DATA_DIR` und bleiben unberührt.
 
-### Für beide Wege
+### Für alle Wege
 
 - **Google-App veröffentlichen:** Unter *Google Auth Platform → Zielgruppe* auf *App veröffentlichen*, sonst kommen
   nur eingetragene Testnutzer rein. Für die reine Anmeldung (Name, E-Mail) verlangt Google keine Prüfung; App-Name

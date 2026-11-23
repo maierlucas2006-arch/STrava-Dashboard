@@ -11,7 +11,7 @@ import shutil
 from datetime import date
 from pathlib import Path
 
-from triathlon import db
+from triathlon import db, storage
 
 # Auf einem Server kann der Datenordner woanders liegen (z. B. ein dauerhaftes Volume): TRI_DATA_DIR=/pfad
 USERS_DIR = Path(os.environ.get("TRI_DATA_DIR") or db.ROOT / "data") / "users"
@@ -69,6 +69,7 @@ def delete_account(path: Path) -> None:
     """Löscht die Datenbank eines Kontos endgültig (samt SQLite-Hilfsdateien)."""
     if demo_mode():
         raise PermissionError("Im Demo-Modus gibt es kein Konto zum Löschen.")
+    storage.delete(path)
     for file in (path, path.with_name(path.name + "-journal"), path.with_name(path.name + "-wal"),
                  path.with_name(path.name + "-shm")):
         file.unlink(missing_ok=True)

@@ -7,7 +7,8 @@ from datetime import date, datetime
 import pandas as pd
 import streamlit as st
 
-from triathlon import auth, db, hevy, intervals, library, privacy, recovery, settings, strava, strength, visual, wger
+from triathlon import (auth, db, hevy, intervals, library, privacy, recovery, settings, storage, strava, strength,
+                       visual, wger)
 from triathlon.analysis import State
 from triathlon.sync import sync_all, sync_due
 
@@ -25,12 +26,13 @@ def _secrets_section(name: str) -> dict:
 
 
 def apply_app_secrets() -> None:
-    """Liest ``[strava]`` aus secrets.toml: Dann gilt die Strava-App des Betreibers für alle Konten
-    und niemand muss eigene Schlüssel anlegen."""
+    """Liest ``[strava]`` und ``[storage]`` aus secrets.toml: die Strava-App des Betreibers für alle
+    Konten und – bei Hostern ohne dauerhaften Speicher – die Sicherung der Konten."""
     for key, env in APP_SECRETS_ENV.items():
         value = _secrets_section("strava").get(key)
         if value:
             os.environ[env] = str(value).strip()
+    storage.configure(_secrets_section("storage"))
 
 
 def app_info() -> dict:
@@ -103,7 +105,23 @@ def require_login() -> None:
                     "Training, Erholung und Ernährung an einem Ort. Melde dich an – deine Daten siehst nur du.")
         st.button("Mit Google anmelden", type="primary", icon=":material/login:", on_click=st.login)
         st.stop()
-    db.use_database(auth.database_for(st.user.get("iss", ""), st.user.get("sub", "")))
+    path = auth.database_for(st.user.get("iss", ""), st.user.get("sub", ""))
+    try:
+        storage.restore(path)
+    except storage.StorageError as exc:
+        st.error(f"{exc} Bitte die Seite in einer Minute neu laden.", icon=":material/cloud_off:")
+        st.stop()
+    db.use_database(path)
+
+
+def save_changes() -> None:
+    """Am Ende jedes Seitenaufrufs: geänderte Konto-Datei sichern (nur wenn ``[storage]`` eingerichtet ist)."""
+    if auth.demo_mode():
+        return
+    try:
+        storage.flush(db.current_path())
+    except storage.StorageError as exc:
+        st.toast(f"{exc} Deine letzte Änderung ist noch nicht gesichert.", icon="⚠️")
 
 
 def require_consent() -> None:
@@ -113,7 +131,7 @@ def require_consent() -> None:
     info = app_info()
     page_header("Bevor es losgeht", "Kurz und vollständig: was mit deinen Daten passiert.")
     with st.container(border=True):
-        st.markdown(privacy.notice(info.get("operator"), info.get("contact")))
+        st.markdown(privacy.notice(info.get("operator"), info.get("contact"), info.get("location")))
     agreed = st.checkbox(privacy.CONSENT_LABEL)
     c1, c2 = st.columns(2)
     if c1.button("Einverstanden, weiter", type="primary", icon=":material/check:", disabled=not agreed) and agreed:
