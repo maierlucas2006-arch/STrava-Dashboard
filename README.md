@@ -184,14 +184,49 @@ pytest
 Aufbau: `app.py` (Einstieg/Navigation), `views/` (Seiten), `triathlon/` (Logik: `load.py` Belastung und Monotonie,
 `recovery.py` Ampel und Morgen-Check, `nutrition.py` Ernährung und Energieverfügbarkeit, `plan.py` Periodisierung,
 `library.py` Trainingsgalerie, `auth.py` Konten, `export.py` Datenexport, `privacy.py` Datenschutzhinweis,
-`strava.py`/`intervals.py`/`wger.py`/`hevy.py` Datenquellen), `deploy/` (Server-Vorlagen).
+`strava.py`/`intervals.py`/`wger.py`/`hevy.py` Datenquellen), `serve.py` (Start beim Hoster), `deploy/` (Server-Vorlagen).
 
 ## Online stellen (Deployment)
 
 Das Dashboard braucht einen Rechner, der dauerhaft läuft und **Dateien behält** – jedes Konto ist eine
 SQLite-Datei. Plattformen ohne dauerhaften Speicher (z. B. Streamlit Community Cloud) verlieren bei jedem
-Neustart alle Konten. Geeignet ist ein kleiner Linux-Server (Ubuntu) oder eine Plattform mit dauerhaftem
-Volume. Die Vorlagen in `deploy/` gehen vom Linux-Server aus:
+Neustart alle Konten. Zwei Wege:
+
+### Weg A: Railway (am einfachsten, kein Server-Wissen nötig)
+
+Railway baut das Dashboard direkt aus dem GitHub-Repo und gibt ihm eine HTTPS-Adresse. Für ein dauerhaftes
+Volume brauchst du den Hobby-Plan.
+
+1. Auf [railway.com](https://railway.com) mit GitHub anmelden, **New Project → Deploy from GitHub repo** →
+   `STrava-Dashboard`. Unter *Settings → Source* den Branch wählen (`claude/triathlon-dashboard-project-ypvsg3`
+   oder `main`, sobald gemergt).
+2. *Settings → Deploy → Custom Start Command:* `python serve.py`
+3. **Volume:** Rechtsklick auf den Dienst → *Attach Volume* → Mount Path `/data`.
+4. *Settings → Networking → Generate Domain* – das ist die Adresse, z. B. `https://tri-dashboard.up.railway.app`.
+5. **Variables** eintragen (Werte aus deiner lokalen `.streamlit/secrets.toml` bzw. Google/Strava):
+
+   | Variable | Wert |
+   |---|---|
+   | `APP_URL` | die Adresse aus Schritt 4 |
+   | `GOOGLE_CLIENT_ID` | Client-ID aus der Google Cloud Console |
+   | `GOOGLE_CLIENT_SECRET` | Clientschlüssel (am besten ein neu erzeugter) |
+   | `COOKIE_SECRET` | Zufallswert: `python -c "import secrets; print(secrets.token_hex(32))"` |
+   | `TRI_DATA_DIR` | `/data` |
+   | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` | optional: deine Strava-App für alle |
+   | `APP_OPERATOR`, `APP_CONTACT` | optional: Name und E-Mail für den Datenschutzhinweis |
+
+6. **Google Cloud → Clients:** Weiterleitungs-URI `<APP_URL>/oauth2callback` hinzufügen (die für localhost bleibt).
+   **Zielgruppe:** Testnutzer eintragen oder *App veröffentlichen* (siehe unten).
+7. **Strava → strava.com/settings/api:** *Authorization Callback Domain* = die Domain ohne `https://`, und die
+   Kapazität auf bis zu 10 Personen erweitern.
+8. Railway baut neu (*Deploy*). Adresse öffnen → **Mit Google anmelden**. Im Log zeigt `serve.py`, falls etwas fehlt.
+
+**Updates:** Jeder Push auf den gewählten Branch wird automatisch neu gebaut; die Konten auf dem Volume bleiben.
+
+### Weg B: eigener Linux-Server
+
+Ein kleiner Linux-Server (Ubuntu) mit eigener Domain. Mehr Handarbeit, dafür volle Kontrolle. Die Vorlagen in
+`deploy/` gehen von diesem Weg aus:
 
 1. **Domain:** eine (Sub-)Domain, z. B. `tri.deine-domain.de`, per DNS-Eintrag auf den Server zeigen lassen.
 2. **Programm:** Benutzer anlegen (`sudo useradd --system --create-home tri`), das Repo nach
@@ -203,9 +238,6 @@ Volume. Die Vorlagen in `deploy/` gehen vom Linux-Server aus:
    - **Google Cloud → Clients:** Weiterleitungs-URI `https://tri.deine-domain.de/oauth2callback` hinzufügen.
      War der Clientschlüssel je irgendwo sichtbar (z. B. auf einem Screenshot), vorher einen **neuen** erzeugen
      und den alten löschen.
-   - **Google Cloud → Zielgruppe:** *App veröffentlichen*, sonst kommen nur eingetragene Testnutzer rein. Für die
-     reine Anmeldung (Name, E-Mail) verlangt Google keine Prüfung; App-Name und Logo zeigt Google aber erst nach
-     einer Markenprüfung an.
    - **Strava → strava.com/settings/api:** *Authorization Callback Domain* = `tri.deine-domain.de`, und unter
      *Athlete Capacity* auf bis zu 10 Personen erweitern.
 4. **Dienst:** `deploy/triathlon-dashboard.service` nach `/etc/systemd/system/` kopieren, Benutzer und Pfade
@@ -213,9 +245,15 @@ Volume. Die Vorlagen in `deploy/` gehen vom Linux-Server aus:
 5. **HTTPS:** [Caddy](https://caddyserver.com) installieren, `deploy/Caddyfile` mit deiner Domain nach
    `/etc/caddy/Caddyfile`, `sudo systemctl reload caddy`. Caddy holt das Zertifikat selbst.
 6. **Sicherung:** `deploy/backup.py` täglich per cron laufen lassen (Befehl steht oben in der Datei).
-7. **Rechtliches:** Sobald andere Personen ihre Gesundheitsdaten eintragen, brauchst du ein Impressum und eine
-   geprüfte Datenschutzerklärung. Der Hinweis in `triathlon/privacy.py` ist eine Vorlage, keine Rechtsberatung.
-   Den eigenen Kreis (Freunde, Kurs) klein halten, bis das geklärt ist.
 
 **Update einspielen:** im Projektordner `git pull`, `.venv/bin/pip install -r requirements.txt`,
 `sudo systemctl restart triathlon-dashboard`. Die Konten liegen in `TRI_DATA_DIR` und bleiben unberührt.
+
+### Für beide Wege
+
+- **Google-App veröffentlichen:** Unter *Google Auth Platform → Zielgruppe* auf *App veröffentlichen*, sonst kommen
+  nur eingetragene Testnutzer rein. Für die reine Anmeldung (Name, E-Mail) verlangt Google keine Prüfung; App-Name
+  und Logo zeigt Google aber erst nach einer Markenprüfung an.
+- **Rechtliches:** Sobald andere Personen ihre Gesundheitsdaten eintragen, brauchst du ein Impressum und eine
+  geprüfte Datenschutzerklärung. Der Hinweis in `triathlon/privacy.py` ist eine Vorlage, keine Rechtsberatung.
+  Den eigenen Kreis (Freunde, Kurs) klein halten, bis das geklärt ist.
