@@ -299,9 +299,10 @@ Ein kleiner Linux-Server (Ubuntu) mit eigener Domain. Mehr Handarbeit, dafür vo
 
 ### Für alle Wege
 
-- **Google-App veröffentlichen:** Unter *Google Auth Platform → Zielgruppe* auf *App veröffentlichen*, sonst kommen
-  nur eingetragene Testnutzer rein. Für die reine Anmeldung (Name, E-Mail) verlangt Google keine Prüfung; App-Name
-  und Logo zeigt Google aber erst nach einer Markenprüfung an.
+- **Google-App veröffentlichen:** Unter *Google Auth Platform → Branding* zuerst die Startseite (die App-Adresse)
+  und die Datenschutzerklärung (`<Adresse>/?seite=datenschutz`) eintragen – vorher bleibt der Knopf grau. Dann unter
+  *Zielgruppe* auf *App veröffentlichen*, sonst kommen nur eingetragene Testnutzer rein. Für die reine Anmeldung
+  (Name, E-Mail) verlangt Google keine Prüfung; App-Name und Logo zeigt Google aber erst nach einer Markenprüfung an.
 - **Rechtliches:** Sobald andere Personen ihre Gesundheitsdaten eintragen, brauchst du ein Impressum und eine
   geprüfte Datenschutzerklärung. Der Hinweis in `triathlon/privacy.py` ist eine Vorlage, keine Rechtsberatung.
   Den eigenen Kreis (Freunde, Kurs) klein halten, bis das geklärt ist.
