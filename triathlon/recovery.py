@@ -1,9 +1,14 @@
-"""Regeneration: HRV-Baseline, Ruhepuls, Schlaf → Ampel (grün/gelb/rot).
+"""Regeneration: HRV-Baseline, Ruhepuls, Schlaf, Morgen-Check → Ampel (grün/gelb/rot).
 
 HRV-Logik (angelehnt an HRV4Training/Plews): Die nächtliche HRV (rMSSD) wird
 logarithmiert. Normalbereich = 60-Tage-Mittel ± 0,5 Standardabweichungen.
 Liegt der 7-Tage-Schnitt darunter, ist der Körper wahrscheinlich nicht
 vollständig erholt.
+
+Morgen-Check (Hooper & Mackinnon 1995): Schlafqualität, Müdigkeit, Stress und
+Muskelkater je 1–7; die Summe (4–28) heißt Hooper-Index, höher = schlechter.
+Auffällig ist ein Tag, der mehr als 1,5 Standardabweichungen über dem eigenen
+60-Tage-Schnitt liegt.
 """
 from __future__ import annotations
 
@@ -21,6 +26,19 @@ HRV_MIN_DAYS = 14
 RHR_BASELINE_DAYS = 30
 MAX_DATA_AGE_DAYS = 1  # Werte von heute oder gestern gelten als aktuell
 
+HOOPER_ITEMS = {
+    "sleep_quality": ("Schlafqualität", "1 = sehr gut · 7 = sehr schlecht"),
+    "fatigue": ("Müdigkeit", "1 = gar nicht · 7 = extrem"),
+    "stress": ("Stress", "1 = gar nicht · 7 = extrem"),
+    "soreness": ("Muskelkater", "1 = gar nicht · 7 = extrem"),
+}
+HOOPER_BASELINE_DAYS = 60
+HOOPER_MIN_ENTRIES = 7
+HOOPER_SD_LIMIT = 1.5      # Hooper & Mackinnon: auffällig ab 1,5 SD über dem eigenen Schnitt
+HOOPER_MIN_SD = 2.0        # eigene Festlegung: sonst löst bei sehr gleichmäßigen Einträgen schon 1 Punkt aus
+HOOPER_HIGH = 20           # ohne Baseline (eigene Faustregel): im Schnitt „schlecht“ (5) pro Frage
+HOOPER_VERY_HIGH = 24
+
 LEVELS = {
     "green": ("🟢", "Grün"),
     "yellow": ("🟡", "Gelb"),
@@ -37,6 +55,59 @@ def wellness_df() -> pd.DataFrame:
     df = df.set_index("date")
     df["sleep_hours"] = df["sleep_secs"] / 3600
     return df
+
+
+def save_hooper(day: date, sleep_quality: int, fatigue: int, stress: int, soreness: int,
+                note: str | None = None) -> None:
+    values = (sleep_quality, fatigue, stress, soreness)
+    if any(v is None or not 1 <= int(v) <= 7 for v in values):
+        raise ValueError("Jede Frage braucht einen Wert von 1 bis 7.")
+    db.execute(
+        "INSERT INTO hooper (date, sleep_quality, fatigue, stress, soreness, note) VALUES (?, ?, ?, ?, ?, ?)"
+        " ON CONFLICT(date) DO UPDATE SET sleep_quality = excluded.sleep_quality, fatigue = excluded.fatigue,"
+        " stress = excluded.stress, soreness = excluded.soreness, note = excluded.note",
+        (day.isoformat(), *(int(v) for v in values), (note or "").strip() or None),
+    )
+
+
+def hooper_df() -> pd.DataFrame:
+    """Alle Morgen-Checks, Index = Datum, Spalte ``index`` = Hooper-Index (4–28)."""
+    df = db.query_df("SELECT date, sleep_quality, fatigue, stress, soreness, note FROM hooper ORDER BY date")
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date")
+    df["index"] = df[list(HOOPER_ITEMS)].sum(axis=1)
+    return df
+
+
+@dataclass
+class HooperStatus:
+    index: int                       # Hooper-Index des Tages
+    baseline: float | None           # Schnitt der Vortage (60 Tage), None = zu wenige Einträge
+    limit: float | None              # ab hier auffällig
+    points: int                      # 0, −1 oder −2 für die Ampel
+
+    @property
+    def worse(self) -> bool:
+        return self.points < 0
+
+
+def hooper_status(hdf: pd.DataFrame, day: date) -> HooperStatus | None:
+    """Bewertung des Morgen-Checks von ``day``; None, wenn an dem Tag keiner ausgefüllt wurde."""
+    end = pd.Timestamp(day)
+    if hdf is None or hdf.empty or end not in hdf.index:
+        return None
+    value = int(hdf.loc[end, "index"])
+    history = hdf["index"][(hdf.index < end) & (hdf.index >= end - pd.Timedelta(days=HOOPER_BASELINE_DAYS))]
+    if len(history) >= HOOPER_MIN_ENTRIES:
+        mean = float(history.mean())
+        sd = max(float(history.std(ddof=1)), HOOPER_MIN_SD)
+        limit = mean + HOOPER_SD_LIMIT * sd
+        points = 0
+        if value > limit:
+            points = -2 if value >= HOOPER_VERY_HIGH else -1
+        return HooperStatus(value, mean, limit, points)
+    points = -2 if value >= HOOPER_VERY_HIGH else -1 if value >= HOOPER_HIGH else 0
+    return HooperStatus(value, None, None, points)
 
 
 @dataclass
@@ -113,7 +184,8 @@ class Readiness:
         return LEVELS[self.level][1]
 
 
-def readiness(day: date, wdf: pd.DataFrame, tsb: float | None) -> Readiness:
+def readiness(day: date, wdf: pd.DataFrame, tsb: float | None,
+              hooper: pd.DataFrame | None = None) -> Readiness:
     reasons: list[tuple[str, int]] = []
     has_wellness = False
 
@@ -165,8 +237,19 @@ def readiness(day: date, wdf: pd.DataFrame, tsb: float | None) -> Readiness:
                         sleep_penalty -= 1
                 sleep_penalty = max(sleep_penalty, -2)
                 reasons.append((text + (" – zu wenig" if sleep_penalty < 0 else ""), sleep_penalty))
-    else:
-        reasons.append(("Keine aktuellen Garmin-Daten – Ampel nur nach Trainingsbelastung", 0))
+
+    check = hooper_status(hooper, day) if hooper is not None else None
+    if not fresh:
+        reasons.append(("Keine aktuellen Garmin-Daten – Ampel nur nach Trainingsbelastung"
+                        + (" und Morgen-Check" if check is not None else ""), 0))
+
+    if check is not None:
+        usual = f", üblich {check.baseline:.0f}" if check.baseline is not None else ""
+        if check.worse:
+            reasons.append((f"Morgen-Check: Befinden schlechter als sonst (Hooper-Index {check.index}{usual})",
+                            check.points))
+        else:
+            reasons.append((f"Morgen-Check: Befinden im üblichen Rahmen (Hooper-Index {check.index}{usual})", 0))
 
     if tsb is not None:
         if tsb < -30:

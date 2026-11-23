@@ -8,7 +8,7 @@ from triathlon.demo import build_demo
 
 APP = str(Path(__file__).resolve().parent.parent / "app.py")
 PAGES = ["views/uebersicht.py", "views/galerie.py", "views/ausdauer.py", "views/regeneration.py",
-         "views/kraft.py", "views/ernaehrung.py", "views/ziele.py", "views/einstellungen.py"]
+         "views/kraft.py", "views/ernaehrung.py", "views/ziele.py", "views/daten.py", "views/einstellungen.py"]
 
 
 def run_page(page: str) -> AppTest:

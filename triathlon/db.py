@@ -74,6 +74,16 @@ CREATE TABLE IF NOT EXISTS wellness (
     raw_json     TEXT
 );
 
+-- Morgen-Check nach Hooper & Mackinnon (1995): je 1 (sehr gut bzw. gar nicht) bis 7 (sehr schlecht bzw. extrem)
+CREATE TABLE IF NOT EXISTS hooper (
+    date           TEXT PRIMARY KEY,               -- YYYY-MM-DD
+    sleep_quality  INTEGER NOT NULL,
+    fatigue        INTEGER NOT NULL,
+    stress         INTEGER NOT NULL,
+    soreness       INTEGER NOT NULL,
+    note           TEXT
+);
+
 CREATE TABLE IF NOT EXISTS exercises (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT NOT NULL UNIQUE,

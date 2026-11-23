@@ -8,6 +8,11 @@ Intensität (IF) je nach vorhandenen Daten berechnet wird:
 * Schwimmen: Tempo / CSS (hier mit Exponent 3, wie beim sTSS üblich)
 * sonst über die Herzfrequenz (Ø-Puls / Schwellenpuls)
 * ohne Puls eine vorsichtige Schätzung über die Dauer
+
+Monotonie und Strain nach Foster (1998): Monotonie = Ø Tagesbelastung ÷
+Standardabweichung der Tagesbelastung über 7 Tage, Strain = Wochenbelastung ×
+Monotonie. Hohe Monotonie (über 2) heißt: kaum Wechsel zwischen harten und
+leichten Tagen.
 """
 from __future__ import annotations
 
@@ -22,6 +27,8 @@ from triathlon.settings import Profile
 
 CTL_DAYS = 42
 ATL_DAYS = 7
+MONOTONY_LIMIT = 2.0   # Foster 1998
+MONOTONY_CAP = 10.0    # bei (fast) gleicher Last an allen Tagen geht die Formel gegen unendlich
 
 SPORT_GROUPS = {
     "Swim": "swim",
@@ -179,4 +186,44 @@ def pmc(daily: pd.Series) -> pd.DataFrame:
         rows.append((day, tss, ctl, atl, tsb))
     df = pd.DataFrame(rows, columns=["date", "tss", "ctl", "atl", "tsb"]).set_index("date")
     df["ramp"] = df["ctl"] - df["ctl"].shift(7)
+    return df
+
+
+def _monotony(values: pd.Series) -> float | None:
+    """Ø ÷ Standardabweichung (Stichprobe) der Tageswerte, höchstens ``MONOTONY_CAP``.
+    None ohne Belastung."""
+    mean = float(values.mean())
+    if mean <= 0:
+        return None
+    sd = float(values.std(ddof=1)) if len(values) > 1 else 0.0
+    return min(mean / sd, MONOTONY_CAP) if sd > 0 else MONOTONY_CAP
+
+
+def monotony_7d(daily: pd.Series) -> tuple[float | None, float | None]:
+    """(Monotonie, Strain) der letzten 7 Tage der Reihe – (None, None) bei weniger als 7 Tagen."""
+    last = daily.tail(7)
+    if len(last) < 7 or last.sum() <= 0:
+        return None, None
+    mono = _monotony(last)
+    return mono, (float(last.sum()) * mono if mono is not None else None)
+
+
+def weekly_monotony(daily: pd.Series) -> pd.DataFrame:
+    """Je vollständiger Kalenderwoche (Mo–So): Belastung, Monotonie und Strain.
+
+    Index = Montag der Woche. Wochen ohne Training haben keine Monotonie (NaN)."""
+    columns = ["tss", "monotony", "strain"]
+    if daily.empty:
+        return pd.DataFrame(columns=columns, dtype=float)
+    index = pd.DatetimeIndex(daily.index)
+    week = index - pd.to_timedelta(index.weekday, unit="D")
+    rows = {}
+    for monday, values in daily.groupby(week):
+        if len(values) < 7:
+            continue
+        tss = float(values.sum())
+        mono = _monotony(values)
+        rows[monday] = (tss, mono, tss * mono if mono is not None else None)
+    df = pd.DataFrame.from_dict(rows, orient="index", columns=columns, dtype=float)
+    df.index.name = "week"
     return df

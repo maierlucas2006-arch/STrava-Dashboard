@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-from triathlon import auth, charts, recovery, ui, visual
+from triathlon import auth, charts, load, recovery, ui, visual
 from triathlon.analysis import build_state
 from triathlon.load import GROUP_LABELS
 from triathlon.units import WEEKDAYS_LONG, fmt_num
@@ -41,6 +41,7 @@ st.html(visual.zone_legend())
 left, right = st.columns([5, 7], gap="large")
 with left:
     st.subheader("Heute")
+    ui.morning_check(state)
     ui.today_card(state)
 
 with right:
@@ -84,6 +85,11 @@ with right:
     st.progress(min(strength_done / t.strength, 1.0) if t.strength else 1.0,
                 text=f"Kraft: {strength_done} von {t.strength} Einheiten")
     st.caption("Die Wochenziele ergeben sich aus deiner Fitness und dem Abstand zum Wettkampf.")
+    mono, _ = load.monotony_7d(state.pmc["tss"]) if not state.pmc.empty else (None, None)
+    if mono is not None and mono > load.MONOTONY_LIMIT:
+        st.warning(f"Die letzten 7 Tage waren sehr gleichförmig (Monotonie {fmt_num(mono, 1)}). Plane einen klar "
+                   "leichten oder freien Tag ein – harte und leichte Tage sollten sich abwechseln.",
+                   icon=":material/swap_vert:")
 
 # ------------------------------------------------------------------ Verlauf
 st.divider()

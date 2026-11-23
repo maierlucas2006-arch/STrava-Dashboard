@@ -3,12 +3,12 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from triathlon import charts, intervals, ui, visual
+from triathlon import charts, intervals, recovery, ui, visual
 from triathlon.analysis import build_state
 
 state = build_state()
 w = state.wellness
-ui.page_header("Regeneration", "Schlaf, Ruhepuls und HRV von Garmin – und was sie für heute bedeuten.")
+ui.page_header("Regeneration", "Schlaf, Ruhepuls, HRV und dein Morgen-Check – und was sie für heute bedeuten.")
 
 ready = state.readiness
 with st.container(border=True):
@@ -73,6 +73,33 @@ else:
             "Gewicht (kg)": recent["weight"].round(1),
             "Quelle": recent["source"],
         }), hide_index=True, width="stretch")
+
+# ------------------------------------------------------------------ Morgen-Check
+st.subheader("Morgen-Check")
+h = state.hooper
+if h.empty:
+    st.caption("Noch keine Einträge. Den Check findest du jeden Morgen auf der Übersicht – vier Fragen, "
+               "je 1 (sehr gut) bis 7 (sehr schlecht). Die Summe heißt Hooper-Index (4–28).")
+else:
+    col_h, col_t = st.columns([3, 2], gap="large")
+    with col_h:
+        fig = charts.line_with_baseline(h["index"].astype(float), "Hooper-Index", "Index (4–28)", 60,
+                                        color_key="strength")
+        if fig:
+            charts.show(fig)
+        st.caption("Höher = schlechter. Auffällig ist ein Tag, der deutlich (1,5 Standardabweichungen) über deinem "
+                   "eigenen Schnitt liegt – dann wird die Ampel vorsichtiger.")
+    with col_t:
+        recent = h.tail(7).sort_index(ascending=False)
+        st.dataframe(pd.DataFrame({
+            "Datum": recent.index.strftime("%d.%m."),
+            **{label: recent[item] for item, (label, _) in recovery.HOOPER_ITEMS.items()},
+            "Index": recent["index"],
+        }), hide_index=True, width="stretch")
+with st.expander("Morgen-Check für einen anderen Tag nachtragen", icon=":material/edit_calendar:"):
+    other_day = st.date_input("Tag", value=date.today(), format="DD.MM.YYYY", key="hooper_day")
+    existing = h.loc[pd.Timestamp(other_day)].to_dict() if not h.empty and pd.Timestamp(other_day) in h.index else None
+    ui.morning_check_form(other_day, f"day_{other_day:%Y%m%d}", existing)
 
 with st.expander("Werte manuell eintragen", icon=":material/edit:"):
     st.caption("Falls intervals.icu nicht eingerichtet ist oder ein Wert fehlt. Leere Felder bleiben unverändert.")

@@ -1,0 +1,6 @@
+# Caddy als Webserver davor: holt das HTTPS-Zertifikat automatisch und leitet an Streamlit weiter
+# (inklusive WebSocket). Domain anpassen, Datei nach /etc/caddy/Caddyfile, dann: sudo systemctl reload caddy
+tri.deine-domain.de {
+    encode gzip
+    reverse_proxy 127.0.0.1:8501
+}

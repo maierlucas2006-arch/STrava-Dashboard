@@ -1,8 +1,10 @@
 """Strava-Anbindung (offizielle API, OAuth2).
 
-Ablauf: In den Einstellungen Client-ID und Client-Secret deiner Strava-App
-eintragen → „Mit Strava verbinden“ → Strava leitet zurück auf
-http://localhost:8501/?code=… → das Dashboard tauscht den Code gegen Tokens.
+Ablauf: Client-ID und Client-Secret der Strava-App stehen entweder zentral in
+``.streamlit/secrets.toml`` (Abschnitt ``[strava]``, gilt für alle Konten) oder pro Konto
+in den Einstellungen → „Mit Strava verbinden“ → Strava leitet zurück auf die
+Adresse des Dashboards (lokal http://localhost:8501/?code=…) → das Dashboard tauscht
+den Code gegen Tokens.
 """
 from __future__ import annotations
 
@@ -19,13 +21,24 @@ from triathlon import db, settings
 AUTH_URL = "https://www.strava.com/oauth/authorize"
 TOKEN_URL = "https://www.strava.com/oauth/token"
 SCOPES = "read,activity:read_all,profile:read_all"
-REDIRECT_URI = os.environ.get("STRAVA_REDIRECT_URI", "http://localhost:8501/")
+DEAUTHORIZE_URL = "https://www.strava.com/oauth/deauthorize"
+DEFAULT_REDIRECT_URI = "http://localhost:8501/"
 OAUTH_STATE = "triathlon-dashboard"
 PAGE_SIZE = 200
 
 
 class StravaError(Exception):
     pass
+
+
+def redirect_uri() -> str:
+    """Wohin Strava nach der Anmeldung zurückleitet – online die Adresse des Dashboards."""
+    return os.environ.get("STRAVA_REDIRECT_URI") or DEFAULT_REDIRECT_URI
+
+
+def app_managed() -> bool:
+    """True, wenn der Betreiber die Strava-App zentral hinterlegt hat (secrets.toml oder Umgebung)."""
+    return bool(os.environ.get("STRAVA_CLIENT_ID") and os.environ.get("STRAVA_CLIENT_SECRET"))
 
 
 def is_configured() -> bool:
@@ -40,7 +53,7 @@ def authorize_url() -> str:
     params = {
         "client_id": settings.get("strava_client_id"),
         "response_type": "code",
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": redirect_uri(),
         "approval_prompt": "auto",
         "scope": SCOPES,
         "state": OAUTH_STATE,
@@ -78,7 +91,18 @@ def exchange_code(code: str) -> dict:
     return athlete
 
 
+def deauthorize() -> None:
+    """Entzieht dem Dashboard bei Strava den Zugriff (gibt den Platz in der Strava-App frei)."""
+    try:
+        token = _access_token()
+        requests.post(DEAUTHORIZE_URL, data={"access_token": token}, timeout=15)
+    except (StravaError, requests.RequestException, KeyError):
+        pass  # offline oder Token schon ungültig – lokal wird trotzdem getrennt
+
+
 def disconnect() -> None:
+    if settings.get("strava_tokens"):
+        deauthorize()
     settings.set("strava_tokens", None)
 
 

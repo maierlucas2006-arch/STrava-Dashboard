@@ -1,9 +1,23 @@
 """Alle Datenquellen auf einmal synchronisieren."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from triathlon import db, hevy, intervals, settings, strava, wger
+
+
+AUTO_SYNC_HOURS = 3
+
+
+def sync_due(last_sync: str | None, now: datetime, hours: float = AUTO_SYNC_HOURS) -> bool:
+    """True, wenn noch nie oder vor mehr als ``hours`` Stunden synchronisiert wurde."""
+    if not last_sync:
+        return True
+    try:
+        last = datetime.fromisoformat(last_sync)
+    except ValueError:
+        return True
+    return now - last >= timedelta(hours=hours)
 
 
 def sync_all(full: bool = False) -> list[tuple[str, bool, str]]:

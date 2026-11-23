@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 
 import streamlit as st
 
-from triathlon import auth, db, hevy, intervals, settings, strava, ui, wger
+from triathlon import auth, db, export, hevy, intervals, privacy, settings, strava, ui, wger
 from triathlon.settings import DEFAULT_TARGET_CTL, RACE_DISTANCES
 from triathlon.units import fmt_pace, parse_pace
 
@@ -42,9 +42,13 @@ if strava.is_connected():
             st.toast(f"{n} Aktivitäten geladen.", icon="✅")
         except strava.StravaError as exc:
             st.error(str(exc))
-    if c3.button("Verbindung trennen", icon=":material/link_off:"):
+    if c3.button("Verbindung trennen", icon=":material/link_off:",
+                 help="Entzieht dem Dashboard bei Strava den Zugriff. Geladene Aktivitäten bleiben erhalten."):
         strava.disconnect()
         st.rerun()
+elif strava.app_managed():
+    st.link_button("Mit Strava verbinden", strava.authorize_url(), type="primary", icon=":material/link:")
+    st.caption("Du wirst zu Strava weitergeleitet, bestätigst dort den Zugriff und landest danach wieder hier.")
 else:
     with st.expander("So richtest du Strava ein (einmalig, 2 Minuten)", expanded=not strava.is_configured()):
         st.markdown(
@@ -182,13 +186,17 @@ with st.expander("Alternativ: Hevy (nur mit Hevy Pro)", expanded=hevy.is_configu
 st.subheader("Athletenprofil & Schwellenwerte")
 max_seen = strava.max_heartrate_seen()
 with st.form("profile"):
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     weight = c1.number_input("Gewicht (kg)", 30.0, 200.0, float(p.weight_kg), step=0.5, format="%.1f")
     height = c2.number_input("Größe (cm)", 120, 230, value=int(p.height_cm) if p.height_cm else None, step=1)
     birth_year = c3.number_input("Geburtsjahr", 1940, date.today().year - 10,
                                  value=int(p.birth_year) if p.birth_year else None, step=1)
     sex = c4.selectbox("Geschlecht", ["m", "w"], index=0 if p.sex == "m" else 1,
                        format_func=lambda s: "männlich" if s == "m" else "weiblich")
+    body_fat = c5.number_input("Körperfett (%)", 3.0, 60.0, value=float(p.body_fat_pct) if p.body_fat_pct else None,
+                               step=0.5, format="%.1f",
+                               help="Für die Energieverfügbarkeit (fettfreie Masse). Leer = Schätzwert. "
+                                    "Messung z. B. per Körperfettwaage oder Caliper.")
 
     c1, c2, c3 = st.columns(3)
     max_hr = c1.number_input("Max. Puls", 120, 230, value=int(p.max_hr) if p.max_hr else None, step=1,
@@ -221,6 +229,7 @@ with st.form("profile"):
         else:
             settings.set_many({
                 "weight_kg": weight, "height_cm": height, "birth_year": birth_year, "sex": sex,
+                "body_fat_pct": body_fat,
                 "max_hr": max_hr, "lthr": lthr, "resting_hr": resting, "ftp": ftp,
                 "threshold_pace": pace, "css": css, "paused_sports": paused,
             })
@@ -262,6 +271,35 @@ with st.form("nutrition"):
         settings.set_many({"pal": pal, "protein_per_kg": protein, "fat_per_kg": fat})
         st.toast("Gespeichert.", icon="✅")
         st.rerun()
+
+# ------------------------------------------------------------------ Deine Daten
+st.subheader("Deine Daten")
+c1, c2 = st.columns(2)
+account = st.user.get("email") if not auth.demo_mode() and st.user.get("is_logged_in") else None
+c1.download_button("Alles herunterladen (ZIP)", data=export.all_data_zip(account),
+                   file_name=f"triathlon-dashboard-export-{date.today():%Y-%m-%d}.zip", mime="application/zip",
+                   icon=":material/download:", on_click="ignore",
+                   help="Alle Tabellen deines Kontos als CSV-Dateien. Zugangsschlüssel sind entfernt.")
+c2.page_link("views/daten.py", label="Tageswerte ansehen und als CSV laden", icon=":material/table_chart:")
+with st.expander("Datenschutzhinweis"):
+    info = ui.app_info()
+    st.markdown(privacy.notice(info.get("operator"), info.get("contact")))
+    consent = settings.get("privacy_consent")
+    if consent:
+        st.caption(f"Eingewilligt am {datetime.fromisoformat(consent):%d.%m.%Y um %H:%M} Uhr.")
+with st.expander("Konto löschen", icon=":material/delete_forever:"):
+    if auth.demo_mode():
+        st.caption("Im Demo-Modus gibt es kein Konto zum Löschen.")
+    else:
+        st.markdown("Löscht **alle** Daten deines Kontos endgültig: Training, Regeneration, Ernährung, Krafttraining, "
+                    "Ziele und Verbindungen. Den Zugriff auf Strava entzieht das Dashboard dabei automatisch. "
+                    "Lade vorher bei Bedarf alles herunter.")
+        sure = st.checkbox("Ja, ich will mein Konto und alle Daten endgültig löschen.")
+        if st.button("Konto endgültig löschen", icon=":material/delete_forever:", disabled=not sure) and sure:
+            strava.disconnect()
+            auth.delete_account(db.current_path())
+            st.logout()
+            st.stop()
 
 # ------------------------------------------------------------------ Erweitert
 with st.expander("Erweitert"):

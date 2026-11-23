@@ -81,6 +81,19 @@ def build_demo(today: date | None = None, seed: int = 7) -> None:
         wellness,
     )
 
+    hooper = []
+    for offset in range(60, -1, -1):
+        if rnd.random() < 0.15 and offset > 0:
+            continue  # nicht jeden Morgen ausgefüllt
+        day = today - timedelta(days=offset)
+        tired = 2 if offset < 4 else 0
+        items = [min(7, max(1, round(rnd.gauss(3, 0.7)) + tired)) for _ in range(4)]
+        hooper.append((day.isoformat(), *items))
+    db.executemany(
+        "INSERT OR REPLACE INTO hooper (date, sleep_quality, fatigue, stress, soreness) VALUES (?, ?, ?, ?, ?)",
+        hooper,
+    )
+
     plans = strength.templates()
     base_weights: dict[int, float] = {}
     session_no = 0
@@ -108,4 +121,4 @@ def build_demo(today: date | None = None, seed: int = 7) -> None:
         day = today - timedelta(days=offset)
         for meal, name, grams in meals:
             db.execute("INSERT INTO food_log (date, meal, food_id, grams) VALUES (?, ?, ?, ?)",
-                       (day.isoformat(), meal, foods[name], grams * rnd.uniform(0.8, 1.3)))
+                       (day.isoformat(), meal, foods[name], grams * rnd.uniform(1.25, 1.75)))

@@ -18,6 +18,7 @@ DEFAULTS: dict[str, Any] = {
     "athlete_name": "",
     "weight_kg": 75.0,
     "height_cm": None,
+    "body_fat_pct": None,      # Körperfett in %, für die Energieverfügbarkeit
     "birth_year": None,
     "sex": "m",
     "max_hr": None,
@@ -56,6 +57,8 @@ DEFAULTS: dict[str, Any] = {
     "wger_routine_id": None,            # vom Dashboard angelegte Routine
     "wger_routine_end": None,
     "wger_last_sync": None,
+    # Datenschutz
+    "privacy_consent": None,           # Zeitpunkt der Einwilligung (ISO)
 }
 
 ENV_OVERRIDES = {
@@ -117,6 +120,7 @@ class Profile:
     pal: float
     protein_per_kg: float
     fat_per_kg: float
+    body_fat_pct: float | None = None
 
     @property
     def lthr(self) -> float | None:
@@ -178,4 +182,5 @@ def load_profile() -> Profile:
         pal=float(g("pal") or 1.4),
         protein_per_kg=float(g("protein_per_kg") or 2.0),
         fat_per_kg=float(g("fat_per_kg") or 1.0),
+        body_fat_pct=float(g("body_fat_pct")) if g("body_fat_pct") else None,
     )

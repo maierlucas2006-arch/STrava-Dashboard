@@ -13,7 +13,8 @@ from pathlib import Path
 
 from triathlon import db
 
-USERS_DIR = db.ROOT / "data" / "users"
+# Auf einem Server kann der Datenordner woanders liegen (z. B. ein dauerhaftes Volume): TRI_DATA_DIR=/pfad
+USERS_DIR = Path(os.environ.get("TRI_DATA_DIR") or db.ROOT / "data") / "users"
 
 
 def demo_mode() -> bool:
@@ -53,3 +54,21 @@ def adopt_legacy_data(target: Path) -> Path:
         archived = legacy.with_name(f"dashboard-uebernommen-{date.today():%Y-%m-%d}-{counter}.db")
     legacy.rename(archived)
     return archived
+
+
+# Tabellen mit eigenen Einträgen (Lebensmittel und Kraftpläne sind vorbefüllt und zählen nicht)
+OWN_DATA_TABLES = ("activities", "wellness", "hooper", "food_log", "strength_sessions", "goals")
+
+
+def has_own_data() -> bool:
+    """True, sobald das Konto irgendetwas Eigenes enthält."""
+    return any(db.fetch_one(f"SELECT 1 FROM {table} LIMIT 1") for table in OWN_DATA_TABLES)
+
+
+def delete_account(path: Path) -> None:
+    """Löscht die Datenbank eines Kontos endgültig (samt SQLite-Hilfsdateien)."""
+    if demo_mode():
+        raise PermissionError("Im Demo-Modus gibt es kein Konto zum Löschen.")
+    for file in (path, path.with_name(path.name + "-journal"), path.with_name(path.name + "-wal"),
+                 path.with_name(path.name + "-shm")):
+        file.unlink(missing_ok=True)

@@ -191,6 +191,18 @@ def kcal_chart(totals: pd.DataFrame, targets: pd.Series) -> go.Figure:
     return _layout(fig, 280, "kcal")
 
 
+def ea_chart(ea: pd.DataFrame, low: float, ok: float) -> go.Figure:
+    """Energieverfügbarkeit je Tag mit den Grenzen „niedrig“ und „ausreichend“."""
+    c = colors()
+    fig = go.Figure(go.Bar(x=ea["date"], y=ea["ea"].round(0), marker_color=c["swim"], name="Energieverfügbarkeit",
+                           hovertemplate="%{y:.0f} kcal/kg FFM"))
+    for y, text in ((low, f"{low:.0f} = Grenze niedrig"), (ok, f"{ok:.0f} = ausreichend")):
+        fig.add_hline(y=y, line=dict(color=c["muted"], width=1, dash="dot"),
+                      annotation_text=text, annotation_position="top left")
+    fig.update_layout(showlegend=False)
+    return _layout(fig, 260, "kcal/kg FFM")
+
+
 def projection_chart(history: pd.DataFrame, projection: pd.DataFrame, target: float,
                      phases: list[dict]) -> go.Figure:
     c = colors()

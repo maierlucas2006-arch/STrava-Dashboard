@@ -3,10 +3,10 @@ from datetime import timedelta
 import pandas as pd
 import streamlit as st
 
-from triathlon import charts, ui
+from triathlon import charts, load, ui
 from triathlon.analysis import build_state
 from triathlon.load import GROUP_LABELS
-from triathlon.units import fmt_duration, fmt_pace, speed_to_pace
+from triathlon.units import fmt_duration, fmt_num, fmt_pace, speed_to_pace
 
 state = build_state()
 ui.page_header("Ausdauer", "Alle Einheiten aus Strava mit ihrer Belastung.")
@@ -44,6 +44,35 @@ fig, table = charts.weekly_volume_chart(sel, strength, weeks=weeks, today=state.
 charts.show(fig)
 with st.expander("Wochenumfang als Tabelle"):
     st.dataframe(table, width="stretch")
+
+# ------------------------------------------------------------------ Belastungsstruktur
+st.subheader("Abwechslung im Training")
+mono, strain = load.monotony_7d(state.pmc["tss"])
+weekly = load.weekly_monotony(state.pmc["tss"])
+weekly = weekly[weekly.index >= start - pd.Timedelta(days=6)].sort_index(ascending=False)
+c1, c2, c3 = st.columns(3)
+c1.metric("Monotonie (7 Tage)", fmt_num(mono, 1) if mono is not None else "–",
+          help="Ø Tagesbelastung ÷ Streuung der Tagesbelastung (Foster 1998). Über 2 = kaum Wechsel zwischen "
+               "harten und leichten Tagen.")
+c2.metric("Strain (7 Tage)", f"{strain:.0f}" if strain is not None else "–",
+          help="Wochenbelastung × Monotonie. Hohe Belastung bei hoher Monotonie gilt als Risiko für "
+               "Überlastung und Infekte.")
+typical = weekly["strain"].median() if not weekly.empty and weekly["strain"].notna().any() else None
+c3.metric("Strain, typische Woche", f"{typical:.0f}" if typical is not None else "–",
+          help="Median der vollständigen Wochen im gewählten Zeitraum – zum Vergleich.")
+if mono is not None and mono > load.MONOTONY_LIMIT:
+    st.warning("Die letzten 7 Tage waren sehr gleichförmig. Ein klar leichter oder freier Tag bringt wieder "
+               "Abwechslung.", icon=":material/swap_vert:")
+if not weekly.empty:
+    with st.expander("Monotonie und Strain je Woche"):
+        st.dataframe(pd.DataFrame({
+            "Woche": [f"KW {d.isocalendar().week} ({d:%d.%m.})" for d in weekly.index],
+            "Belastung (TSS)": weekly["tss"].round(0),
+            "Monotonie": weekly["monotony"].round(2),
+            "Strain": weekly["strain"].round(0),
+            "Hinweis": ["sehr gleichförmig" if m > load.MONOTONY_LIMIT else ""
+                        for m in weekly["monotony"].fillna(0)],
+        }), hide_index=True, width="stretch")
 
 
 def _speed_text(row) -> str:

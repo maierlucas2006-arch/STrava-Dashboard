@@ -67,3 +67,29 @@ def test_strength_log_not_double_counted_with_strava_strength():
     strength = pd.DataFrame({"date": [day, day + pd.Timedelta(days=1)], "tss": [49.0, 49.0]})
     daily = load.daily_load(acts, strength, date(2026, 10, 5), date(2026, 10, 6))
     assert daily.tolist() == [40.0, 49.0]
+
+
+def test_monotony_and_strain_follow_foster():
+    days = pd.date_range("2026-11-02", periods=14)          # zwei Wochen ab Montag
+    hard_easy = pd.Series([100.0, 0, 100, 0, 100, 0, 50] * 2, index=days)
+    weekly = load.weekly_monotony(hard_easy)
+    assert list(weekly.index) == list(pd.to_datetime(["2026-11-02", "2026-11-09"]))
+    mean, sd = hard_easy[:7].mean(), hard_easy[:7].std(ddof=1)
+    assert weekly["monotony"].iloc[0] == pytest.approx(mean / sd)
+    assert weekly["strain"].iloc[0] == pytest.approx(350 * mean / sd)
+    assert weekly["monotony"].iloc[0] < load.MONOTONY_LIMIT
+
+
+def test_same_load_every_day_is_maximally_monotonous():
+    days = pd.date_range("2026-11-02", periods=7)
+    mono, strain = load.monotony_7d(pd.Series(60.0, index=days))
+    assert mono == load.MONOTONY_CAP
+    assert strain == pytest.approx(420 * load.MONOTONY_CAP)
+
+
+def test_monotony_needs_full_week_and_training():
+    days = pd.date_range("2026-11-02", periods=10)        # nur eine vollständige Woche
+    assert len(load.weekly_monotony(pd.Series(30.0, index=days))) == 1
+    assert load.monotony_7d(pd.Series(0.0, index=days)) == (None, None)
+    assert load.monotony_7d(pd.Series([50.0] * 5, index=days[:5])) == (None, None)
+    assert load.weekly_monotony(pd.Series(dtype=float)).empty

@@ -132,6 +132,31 @@ for meal in nutrition.MEALS:
                 nutrition.delete_entry(row.id)
                 st.rerun()
 
+# ------------------------------------------------------------------ Energieverfügbarkeit
+st.subheader("Energieverfügbarkeit")
+ea = nutrition.energy_availability(profile, day - timedelta(days=27), day)
+avg = nutrition.ea_average(ea, day)
+ffm, estimated = nutrition.fat_free_mass(profile)
+if avg is None:
+    st.caption("Erscheint, sobald an mindestens 3 der letzten 7 Tage (ohne heute) Essen eingetragen ist. "
+               "Gemeint ist, wie viel Energie nach dem Training für den Körper übrig bleibt.")
+else:
+    level = nutrition.ea_level(avg)
+    name, advice = nutrition.EA_LEVELS[level]
+    c1, c2 = st.columns([1, 2])
+    c1.metric("Ø der letzten 7 Tage", f"{avg:.0f} kcal/kg FFM",
+              help="(Gegessen − Trainingsverbrauch) ÷ fettfreie Masse. Unter 30 niedrig, 30–45 reduziert, "
+                   "ab 45 ausreichend.")
+    with c2:
+        icon = {"low": ":material/error:", "reduced": ":material/warning:", "ok": ":material/check_circle:"}[level]
+        box = {"low": st.error, "reduced": st.warning, "ok": st.success}[level]
+        box(f"**{name.capitalize()}.** {advice}", icon=icon)
+    charts.show(charts.ea_chart(ea, nutrition.EA_LOW, nutrition.EA_OK))
+    st.caption(f"Fettfreie Masse {ffm:.1f} kg"
+               + (" – geschätzt, weil kein Körperfettanteil eingetragen ist (Einstellungen → Profil)."
+                  if estimated else ".")
+               + " Nur Tage mit Einträgen; der Trainingsverbrauch kommt aus Strava bzw. dem Krafttagebuch.")
+
 # ------------------------------------------------------------------ Verlauf
 st.subheader("Letzte 14 Tage")
 start = day - timedelta(days=13)

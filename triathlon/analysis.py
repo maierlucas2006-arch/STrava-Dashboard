@@ -1,7 +1,7 @@
 """Bündelt alle Daten für einen Stichtag: Belastung, Regeneration, Phase, Plan."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 import pandas as pd
@@ -25,6 +25,7 @@ class State:
     targets: plan.WeekTargets
     week: list[plan.DayPlan]
     recommendation: plan.Recommendation
+    hooper: pd.DataFrame = field(default_factory=pd.DataFrame)
 
     @property
     def ctl(self) -> float:
@@ -97,8 +98,9 @@ def build_state(today: date | None = None) -> State:
     pmc_df = load.pmc(daily)
 
     wellness = recovery.wellness_df()
+    hooper = recovery.hooper_df()
     tsb_today = float(pmc_df["tsb"].iloc[-1]) if not pmc_df.empty else None
-    ready = recovery.readiness(today, wellness, tsb_today)
+    ready = recovery.readiness(today, wellness, tsb_today, hooper)
 
     phase = plan.phase_for(today, profile.race_date, profile.race_distance)
     ctl_now = float(pmc_df["ctl"].iloc[-1]) if not pmc_df.empty else 0.0
@@ -126,4 +128,5 @@ def build_state(today: date | None = None) -> State:
         None if ramp is None or pd.isna(ramp) else float(ramp), yesterday_tss,
     )
 
-    return State(today, profile, acts, strength_sessions, pmc_df, wellness, ready, phase, targets, week, rec)
+    return State(today, profile, acts, strength_sessions, pmc_df, wellness, ready, phase, targets, week, rec,
+                 hooper=hooper)

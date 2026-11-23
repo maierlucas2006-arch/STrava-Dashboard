@@ -1,4 +1,10 @@
-"""Ernährungstagebuch: Lebensmittel (Open Food Facts + eigene), Tagesziele."""
+"""Ernährungstagebuch: Lebensmittel (Open Food Facts + eigene), Tagesziele, Energieverfügbarkeit.
+
+Energieverfügbarkeit (EA, Loucks et al. 2011) = (Energieaufnahme − Trainingsenergie)
+÷ fettfreie Masse, in kcal pro kg fettfreier Masse und Tag. Die Trainingsenergie
+ist ohne den Grundumsatz während der Einheit gerechnet. Unter 30 gilt als niedrig,
+30–45 als reduziert, ab 45 als ausreichend (Mountjoy et al. 2023, IOC-Konsens REDs).
+"""
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -201,3 +207,54 @@ def targets(profile: Profile, day: date) -> dict:
     carbs = max((kcal - protein * 4 - fat * 9) / 4, 0)
     return {"kcal": kcal, "protein": protein, "carbs": carbs, "fat": fat,
             "base": base, "base_note": base_note, "training": training}
+
+
+# --------------------------------------------------------------------------- Energieverfügbarkeit
+
+EA_LOW = 30.0
+EA_OK = 45.0
+DEFAULT_BODY_FAT = {"m": 15.0, "w": 23.0}   # grobe Annahme für Ausdauersportler, wenn nichts eingetragen ist
+EA_LEVELS = {
+    "low": ("niedrig", "Auf Dauer riskant für Hormone, Knochen, Immunsystem und Leistung (RED-S). "
+                       "An Trainingstagen mehr essen – vor allem Kohlenhydrate – und bei anhaltend niedrigen "
+                       "Werten ärztlich oder sportmedizinisch abklären."),
+    "reduced": ("reduziert", "Für eine gezielte, langsame Gewichtsabnahme vertretbar, aber nicht über viele Wochen."),
+    "ok": ("ausreichend", "Genug Energie für Training und Körperfunktionen."),
+}
+
+
+def fat_free_mass(profile: Profile) -> tuple[float, bool]:
+    """(fettfreie Masse in kg, geschätzt?) – geschätzt heißt: Körperfett nicht eingetragen."""
+    estimated = not profile.body_fat_pct
+    pct = DEFAULT_BODY_FAT.get(profile.sex, 18.0) if estimated else float(profile.body_fat_pct)
+    return profile.weight_kg * (1 - pct / 100), estimated
+
+
+def energy_availability(profile: Profile, start: date, end: date) -> pd.DataFrame:
+    """Je Tag mit Einträgen im Tagebuch: Aufnahme, Trainingsenergie und EA (kcal/kg FFM)."""
+    totals = daily_totals(start, end)
+    columns = ["date", "intake", "training", "ea"]
+    if totals.empty:
+        return pd.DataFrame(columns=columns)
+    ffm, _ = fat_free_mass(profile)
+    rows = []
+    for row in totals.itertuples():
+        training = training_kcal(row.date.date(), profile.weight_kg)
+        rows.append((row.date, float(row.kcal), training, (float(row.kcal) - training) / ffm))
+    return pd.DataFrame(rows, columns=columns)
+
+
+def ea_level(value: float) -> str:
+    return "low" if value < EA_LOW else "reduced" if value < EA_OK else "ok"
+
+
+def ea_average(ea: pd.DataFrame, end: date, days: int = 7, min_days: int = 3) -> float | None:
+    """Ø EA der eingetragenen Tage im Zeitraum bis ``end`` – None bei weniger als ``min_days`` Tagen.
+    Der laufende Tag zählt nicht mit, weil er meist noch nicht vollständig eingetragen ist."""
+    if ea.empty:
+        return None
+    end_ts = pd.Timestamp(end)
+    window = ea[(ea["date"] < end_ts) & (ea["date"] >= end_ts - pd.Timedelta(days=days))]
+    if len(window) < min_days:
+        return None
+    return float(window["ea"].mean())
