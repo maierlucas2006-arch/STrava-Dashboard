@@ -46,32 +46,47 @@ if strava.is_connected():
                  help="Entzieht dem Dashboard bei Strava den Zugriff. Geladene Aktivitäten bleiben erhalten."):
         strava.disconnect()
         st.rerun()
-elif strava.app_managed():
-    st.link_button("Mit Strava verbinden", strava.authorize_url(), type="primary", icon=":material/link:")
-    st.caption("Du wirst zu Strava weitergeleitet, bestätigst dort den Zugriff und landest danach wieder hier.")
 else:
-    with st.expander("So richtest du Strava ein (einmalig, 2 Minuten)", expanded=not strava.is_configured()):
-        st.markdown(
-            """
-1. Öffne **[strava.com/settings/api](https://www.strava.com/settings/api)** und leg eine App an:
-   - *Application Name:* z. B. „Triathlon Dashboard“
-   - *Category:* Training · *Website:* `http://localhost`
-   - *Authorization Callback Domain:* **`localhost`**
-2. Kopiere **Client ID** und **Client Secret** in die Felder unten und speichere.
-3. Klick auf **„Mit Strava verbinden“** und bestätige bei Strava.
-            """
-        )
-    with st.form("strava_keys"):
-        c1, c2 = st.columns(2)
-        client_id = c1.text_input("Client ID", value=settings.get("strava_client_id") or "")
-        client_secret = c2.text_input("Client Secret", value=settings.get("strava_client_secret") or "",
-                                      type="password")
-        if st.form_submit_button("Speichern"):
-            settings.set_many({"strava_client_id": client_id.strip(), "strava_client_secret": client_secret.strip()})
-            st.rerun()
     if strava.is_configured():
         st.link_button("Mit Strava verbinden", strava.authorize_url(), type="primary", icon=":material/link:")
-        st.caption("Du wirst zu Strava weitergeleitet und landest danach wieder hier.")
+        hint = "Du wirst zu Strava weitergeleitet, bestätigst dort den Zugriff und landest danach wieder hier."
+        if strava.app_managed() and not strava.uses_own_app():
+            hint += (" Zeigt Strava „Limit of connected athletes exceeded“, ist die gemeinsame Strava-App voll – "
+                     "dann unten deine eigene Strava-App eintragen.")
+        st.caption(hint)
+    title = ("Eigene Strava-App verwenden (falls die gemeinsame voll ist)" if strava.app_managed()
+             else "So richtest du Strava ein (einmalig, 5 Minuten)")
+    with st.expander(title, expanded=not strava.is_configured() or strava.uses_own_app()):
+        st.markdown(
+            f"""
+1. Öffne **[strava.com/settings/api](https://www.strava.com/settings/api)** und leg eine App an
+   (Strava verlangt dafür ein Strava-Abo):
+   - *Application Name:* z. B. „Mein Triathlon Dashboard“
+   - *Category:* Training · *Website:* `{strava.redirect_uri()}`
+   - *Authorization Callback Domain:* **`{strava.callback_domain()}`**
+2. Kopiere **Client ID** und **Client Secret** in die Felder unten und speichere.
+3. Klick oben auf **„Mit Strava verbinden“** und bestätige bei Strava.
+            """
+        )
+        own_id = settings.get("strava_own_client_id") or ("" if strava.app_managed() else settings.get("strava_client_id") or "")
+        own_secret = settings.get("strava_own_client_secret") or ("" if strava.app_managed() else settings.get("strava_client_secret") or "")
+        with st.form("strava_keys"):
+            c1, c2 = st.columns(2)
+            client_id = c1.text_input("Client ID", value=str(own_id))
+            client_secret = c2.text_input("Client Secret", value=str(own_secret), type="password")
+            b1, b2 = st.columns(2)
+            save = b1.form_submit_button("Speichern", type="primary")
+            reset = b2.form_submit_button("Eigene App entfernen") if strava.uses_own_app() and strava.app_managed() else False
+        if save:
+            if not client_id.strip() or not client_secret.strip():
+                st.error("Bitte Client ID und Client Secret eintragen.")
+            else:
+                strava.save_own_app(client_id, client_secret)
+                st.toast("Gespeichert – jetzt oben „Mit Strava verbinden“.", icon="✅")
+                st.rerun()
+        if reset:
+            strava.save_own_app("", "")
+            st.rerun()
 
 # ------------------------------------------------------------------ intervals.icu
 st.subheader("Garmin (über intervals.icu)")
@@ -243,7 +258,8 @@ with st.form("race"):
     race_name = c1.text_input("Name", value=p.race_name)
     race_date = c2.date_input("Datum", value=p.race_date, format="DD.MM.YYYY")
     distance = c3.selectbox("Distanz", RACE_DISTANCES, index=RACE_DISTANCES.index(p.race_distance)
-                            if p.race_distance in RACE_DISTANCES else 3)
+                            if p.race_distance in RACE_DISTANCES else 1)
+    no_race = st.checkbox("Gerade kein Wettkampf geplant", value=not p.race_date)
     c1, c2 = st.columns(2)
     goal_time = c1.text_input("Zielzeit (optional)", value=p.race_goal_time, placeholder="z. B. 12:30 h")
     target_ctl = c2.number_input(
@@ -253,7 +269,8 @@ with st.form("race"):
     )
     if st.form_submit_button("Wettkampf speichern", type="primary"):
         settings.set_many({
-            "race_name": race_name.strip(), "race_date": race_date.isoformat() if race_date else None,
+            "race_name": "" if no_race else race_name.strip(),
+            "race_date": race_date.isoformat() if race_date and not no_race else None,
             "race_distance": distance, "race_goal_time": goal_time.strip(), "target_ctl": target_ctl,
         })
         st.toast("Wettkampf gespeichert.", icon="✅")

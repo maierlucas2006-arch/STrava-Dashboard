@@ -16,7 +16,7 @@ import pandas as pd
 from triathlon import db, nutrition
 from triathlon.analysis import State
 
-SECRET_SETTINGS = {"strava_tokens", "strava_client_secret", "intervals_api_key", "hevy_api_key", "wger_api_key"}
+SECRET_SETTINGS = {"strava_tokens", "strava_client_secret", "strava_own_client_secret", "intervals_api_key", "hevy_api_key", "wger_api_key"}
 REDACTED = "(entfernt)"
 
 DAILY_COLUMNS = {

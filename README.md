@@ -16,7 +16,7 @@ Dashboard, das Triathlon-Training steuert – lokal auf deinem PC oder online f�
 | **Tageswerte** | Alle Kennzahlen in einer Zeile pro Tag, als CSV für Excel |
 | **Einstellungen** | Verbindungen, Profil, Schwellen – und unter *Deine Daten*: alles herunterladen (ZIP), Datenschutzhinweis, Konto löschen |
 
-Jede Person meldet sich mit ihrem Google-Konto an und arbeitet mit ihren eigenen Daten (eine Datei pro Konto unter `data/users/`). Passwörter speichert das Dashboard nicht. Vor der ersten Nutzung erscheint ein Datenschutzhinweis mit Einwilligung (öffentlich auch unter `<Adresse>/?seite=datenschutz`, z. B. für den Google-Zustimmungsbildschirm); beim Öffnen holt das Dashboard neue Daten automatisch, wenn der letzte Abgleich mehr als 3 Stunden her ist.
+Jede Person meldet sich mit ihrem Google-Konto an und arbeitet mit ihren eigenen Daten (eine Datei pro Konto unter `data/users/`). Passwörter speichert das Dashboard nicht. Vor der ersten Nutzung erscheint ein Datenschutzhinweis mit Einwilligung (öffentlich auch unter `<Adresse>/?seite=datenschutz`, z. B. für den Google-Zustimmungsbildschirm), danach eine kurze Einrichtung: Vorname, eigenes Ziel (Wettkampf mit Datum und Distanz oder keiner) und Körperdaten – nichts davon ist vorbelegt; beim Öffnen holt das Dashboard neue Daten automatisch, wenn der letzte Abgleich mehr als 3 Stunden her ist.
 
 ---
 
@@ -73,7 +73,9 @@ Fürs Online-Stellen siehe [Online stellen](#online-stellen-deployment).
 einmal mit `setup_login.py` in `secrets.toml` hinterlegen (Abschnitt `[strava]`). Dann sieht jede Person unter
 *Einstellungen → Strava* nur noch **„Mit Strava verbinden“**. Eine neue Strava-App lässt nur dich selbst zu;
 unter strava.com/settings/api kannst du sie ohne Prüfung auf bis zu 10 Personen erweitern, für mehr braucht es
-eine Prüfung durch Strava.
+eine Prüfung durch Strava. Ist die gemeinsame App voll, kann jede Person unter *Einstellungen → Strava → Eigene
+Strava-App verwenden* ihre eigene Strava-App eintragen (Callback-Domain = Adresse des Dashboards; Strava verlangt
+dafür ein Abo).
 
 **Nur für dich:**
 

@@ -29,9 +29,9 @@ DEFAULTS: dict[str, Any] = {
     "css": None,               # Critical Swim Speed, Sekunden pro 100 m
     "paused_sports": [],       # z. B. ["run"] bei Verletzung
     # Wettkampf
-    "race_name": "Nordschwarzwald Triathlon",
-    "race_date": "2027-08-15",
-    "race_distance": "Langdistanz",
+    "race_name": "",           # jede Person trägt ihren eigenen Wettkampf ein (Einrichtung beim ersten Login)
+    "race_date": None,
+    "race_distance": "Olympisch",
     "race_goal_time": "",
     "target_ctl": None,        # None = Standardwert je Distanz
     # Ernährung
@@ -57,8 +57,12 @@ DEFAULTS: dict[str, Any] = {
     "wger_routine_id": None,            # vom Dashboard angelegte Routine
     "wger_routine_end": None,
     "wger_last_sync": None,
-    # Datenschutz
+    # Datenschutz und Einrichtung
     "privacy_consent": None,           # Zeitpunkt der Einwilligung (ISO)
+    "setup_done": None,                # Zeitpunkt, an dem Name, Ziel und Körperdaten eingetragen wurden (ISO)
+    # Eigene Strava-App (wenn die gemeinsame App des Dashboards voll ist)
+    "strava_own_client_id": "",
+    "strava_own_client_secret": "",
 }
 
 ENV_OVERRIDES = {
@@ -83,6 +87,11 @@ def get(key: str) -> Any:
     if row is None:
         return DEFAULTS.get(key)
     return json.loads(row["value"])
+
+
+def is_set(key: str) -> bool:
+    """True, wenn die Person den Wert selbst gespeichert hat (nicht nur der Standardwert gilt)."""
+    return db.fetch_one("SELECT 1 FROM settings WHERE key = ?", (key,)) is not None
 
 
 def set(key: str, value: Any) -> None:  # noqa: A001 - bewusst kurz: settings.set(...)
@@ -176,7 +185,7 @@ def load_profile() -> Profile:
         paused_sports=list(g("paused_sports") or []),
         race_name=g("race_name") or "",
         race_date=_parse_date(g("race_date")),
-        race_distance=g("race_distance") or "Langdistanz",
+        race_distance=g("race_distance") or DEFAULTS["race_distance"],
         race_goal_time=g("race_goal_time") or "",
         target_ctl_set=g("target_ctl"),
         pal=float(g("pal") or 1.4),

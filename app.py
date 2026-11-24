@@ -13,6 +13,7 @@ ui.require_login()       # Anmeldeseite – danach gilt die Datenbank des angeme
 try:
     db.init_db()
     ui.require_consent()     # beim ersten Mal: Datenschutzhinweis und Einwilligung
+    ui.require_setup()       # beim ersten Mal: Name, eigenes Ziel und Körperdaten
 
     # Rückkehr von der Strava-Anmeldung: <Adresse des Dashboards>/?state=…&code=…
     params = st.query_params

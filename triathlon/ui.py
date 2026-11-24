@@ -10,6 +10,7 @@ import streamlit as st
 from triathlon import (auth, db, hevy, intervals, library, privacy, recovery, settings, storage, strava, strength,
                        visual, wger)
 from triathlon.analysis import State
+from triathlon.settings import RACE_DISTANCES
 from triathlon.sync import sync_all, sync_due
 
 # Zentrale Strava-App aus secrets.toml → Umgebungsvariablen, die settings.get bevorzugt
@@ -160,6 +161,83 @@ def require_consent() -> None:
         if not auth.has_own_data():
             auth.delete_account(db.current_path())   # die gerade angelegte, leere Datei wieder entfernen
         st.logout()
+    st.stop()
+
+
+GOAL_RACE, GOAL_NONE = "Auf einen Wettkampf", "Ohne bestimmten Wettkampf"
+SEX_LABELS = {"m": "männlich", "w": "weiblich"}
+
+
+def _login_first_name() -> str:
+    """Vorname aus dem Google-Konto als Vorschlag (wird erst gespeichert, wenn die Person bestätigt)."""
+    try:
+        given = st.user.get("given_name") or (st.user.get("name") or "").split(" ")[0]
+    except Exception:  # noqa: BLE001 – ohne Anmeldung (lokal/Demo) gibt es kein st.user
+        given = ""
+    return str(given or "")
+
+
+def require_setup() -> None:
+    """Beim ersten Mal: Name, eigenes Ziel und Körperdaten – nichts davon ist für andere vorbelegt."""
+    if auth.demo_mode() or settings.get("setup_done"):
+        return
+    p = settings.load_profile()
+    today = date.today()
+    page_header("Willkommen!", "Drei kurze Angaben, damit das Dashboard zu dir passt. "
+                               "Alles lässt sich später in den Einstellungen ändern.")
+    race_known = bool(p.race_date and p.race_date >= today)
+    goal = st.segmented_control(
+        "**Worauf trainierst du hin?**", [GOAL_RACE, GOAL_NONE], key="setup_goal",
+        default=GOAL_NONE if settings.is_set("race_date") and not race_known else GOAL_RACE,
+    )
+    with st.form("setup"):
+        name = st.text_input("Dein Vorname", value=p.name or _login_first_name(), max_chars=40)
+        race_name, race_date, distance, goal_time = "", None, p.race_distance, ""
+        if goal == GOAL_RACE:
+            st.markdown("**Dein Wettkampf**")
+            c1, c2 = st.columns([3, 2])
+            race_name = c1.text_input("Name des Wettkampfs", value=p.race_name, placeholder="z. B. Challenge Roth")
+            race_date = c2.date_input("Datum", value=p.race_date if race_known else None, min_value=today,
+                                      format="DD.MM.YYYY")
+            c3, c4 = st.columns(2)
+            distance = c3.selectbox("Distanz", RACE_DISTANCES, index=RACE_DISTANCES.index(p.race_distance)
+                                    if p.race_distance in RACE_DISTANCES else 1)
+            goal_time = c4.text_input("Zielzeit (optional)", value=p.race_goal_time, placeholder="z. B. 5:30 h")
+        st.markdown("**Ein paar Körperdaten** – für Kalorienbedarf und Energieverfügbarkeit")
+        c1, c2, c3, c4 = st.columns(4)
+        sex = c1.selectbox("Geschlecht", list(SEX_LABELS), index=list(SEX_LABELS).index(p.sex)
+                           if settings.is_set("sex") and p.sex in SEX_LABELS else 0, format_func=SEX_LABELS.get)
+        weight = c2.number_input("Gewicht (kg)", 30.0, 250.0, step=0.5,
+                                 value=float(p.weight_kg) if settings.is_set("weight_kg") else None)
+        height = c3.number_input("Größe (cm, optional)", 120, 230, value=int(p.height_cm) if p.height_cm else None)
+        birth_year = c4.number_input("Geburtsjahr (optional)", 1930, today.year - 10,
+                                     value=int(p.birth_year) if p.birth_year else None)
+        submitted = st.form_submit_button("Speichern und loslegen", type="primary", icon=":material/arrow_forward:")
+    st.caption("FTP, Schwellen-Pace und CSS trägst du später in den Einstellungen ein oder übernimmst sie aus Strava.")
+    if submitted:
+        missing = []
+        if not (name or "").strip():
+            missing.append("deinen Vornamen")
+        if goal is None:
+            missing.append("ob du auf einen Wettkampf hin trainierst")
+        if goal == GOAL_RACE and not (race_name or "").strip():
+            missing.append("den Namen des Wettkampfs")
+        if goal == GOAL_RACE and not race_date:
+            missing.append("das Datum des Wettkampfs")
+        if not weight:
+            missing.append("dein Gewicht")
+        if missing:
+            st.error("Bitte noch eintragen: " + ", ".join(missing) + ".", icon=":material/edit:")
+        else:
+            settings.set_many({
+                "athlete_name": name.strip(), "sex": sex, "weight_kg": float(weight),
+                "height_cm": int(height) if height else None, "birth_year": int(birth_year) if birth_year else None,
+                "race_name": race_name.strip() if goal == GOAL_RACE else "",
+                "race_date": race_date.isoformat() if goal == GOAL_RACE and race_date else None,
+                "race_distance": distance, "race_goal_time": goal_time.strip() if goal == GOAL_RACE else "",
+                "setup_done": datetime.now().isoformat(timespec="seconds"),
+            })
+            st.rerun()
     st.stop()
 
 

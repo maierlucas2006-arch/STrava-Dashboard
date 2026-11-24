@@ -41,8 +41,45 @@ def app_managed() -> bool:
     return bool(os.environ.get("STRAVA_CLIENT_ID") and os.environ.get("STRAVA_CLIENT_SECRET"))
 
 
+CAPACITY_HINT = ("Die gemeinsame Strava-App des Dashboards ist schon voll (Strava erlaubt ohne Prüfung höchstens "
+                 "10 Personen). Trag unter Einstellungen → Strava deine eigene Strava-App ein, dann klappt es.")
+
+
+def uses_own_app() -> bool:
+    """True, wenn diese Person ihre eigene Strava-App hinterlegt hat – die hat dann Vorrang."""
+    return bool(settings.get("strava_own_client_id") and settings.get("strava_own_client_secret"))
+
+
+def credentials() -> tuple[str, str]:
+    """(Client-ID, Client-Secret): eigene App der Person, sonst die zentrale bzw. bisher gespeicherte."""
+    if uses_own_app():
+        return str(settings.get("strava_own_client_id")), str(settings.get("strava_own_client_secret"))
+    return str(settings.get("strava_client_id") or ""), str(settings.get("strava_client_secret") or "")
+
+
+def save_own_app(client_id: str, client_secret: str) -> None:
+    """Eigene Strava-App speichern (leer = wieder die gemeinsame nutzen). Eine bestehende Verbindung wird
+    getrennt, weil ihre Schlüssel zur anderen App gehören."""
+    before = credentials()
+    settings.set_many({"strava_own_client_id": client_id.strip(), "strava_own_client_secret": client_secret.strip()})
+    if settings.get("strava_tokens") and credentials() != before:
+        tokens = settings.get("strava_tokens")
+        settings.set("strava_tokens", None)          # Token gehört zur alten App – lokal verwerfen
+        try:
+            requests.post(DEAUTHORIZE_URL, data={"access_token": tokens["access_token"]}, timeout=15)
+        except (requests.RequestException, KeyError, TypeError):
+            pass
+
+
+def callback_domain() -> str:
+    """Domain, die in der Strava-App unter „Authorization Callback Domain“ stehen muss."""
+    from urllib.parse import urlparse
+    return urlparse(redirect_uri()).hostname or "localhost"
+
+
 def is_configured() -> bool:
-    return bool(settings.get("strava_client_id") and settings.get("strava_client_secret"))
+    client_id, client_secret = credentials()
+    return bool(client_id and client_secret)
 
 
 def is_connected() -> bool:
@@ -51,7 +88,7 @@ def is_connected() -> bool:
 
 def authorize_url() -> str:
     params = {
-        "client_id": settings.get("strava_client_id"),
+        "client_id": credentials()[0],
         "response_type": "code",
         "redirect_uri": redirect_uri(),
         "approval_prompt": "auto",
@@ -62,17 +99,20 @@ def authorize_url() -> str:
 
 
 def _token_request(data: dict) -> dict:
-    payload = {
-        "client_id": settings.get("strava_client_id"),
-        "client_secret": settings.get("strava_client_secret"),
-        **data,
-    }
+    client_id, client_secret = credentials()
+    payload = {"client_id": client_id, "client_secret": client_secret, **data}
     try:
         response = requests.post(TOKEN_URL, data=payload, timeout=30)
     except requests.RequestException as exc:
         raise StravaError(f"Strava nicht erreichbar: {exc}") from exc
     if response.status_code != 200:
-        raise StravaError(f"Strava-Anmeldung fehlgeschlagen ({response.status_code}): {response.text[:200]}")
+        text = response.text[:300]
+        if response.status_code == 403 and "limit" in text.lower():
+            raise StravaError(CAPACITY_HINT)
+        if response.status_code in (400, 401) and "client" in text.lower():
+            raise StravaError("Strava kennt diese Client-ID oder dieses Client-Secret nicht – bitte unter "
+                              "Einstellungen → Strava prüfen.")
+        raise StravaError(f"Strava-Anmeldung fehlgeschlagen ({response.status_code}): {text[:200]}")
     tokens = response.json()
     settings.set("strava_tokens", {
         "access_token": tokens["access_token"],
