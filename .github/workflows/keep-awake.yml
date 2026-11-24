@@ -1,0 +1,40 @@
+# Hält die App bei Streamlit Community Cloud wach: Nach 12 Stunden ohne Besuch schläft sie ein,
+# und Besucher müssen sie erst aufwecken (in Safari endet das oft in „zu viele Umleitungen“).
+# Läuft alle 6 Stunden kostenlos bei GitHub und klickt bei Bedarf auf „Yes, get this app back up!“.
+name: App wach halten
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APP_URL: https://triathlon-trainingsdashboard.streamlit.app/
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - name: App öffnen und notfalls wecken
+        shell: python
+        run: |
+          import os
+          from playwright.sync_api import sync_playwright
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+              page = browser.new_page()
+              page.goto(os.environ["APP_URL"], wait_until="domcontentloaded", timeout=120_000)
+              page.wait_for_timeout(10_000)
+              button = page.get_by_role("button", name="Yes, get this app back up!")
+              if button.count():
+                  button.first.click()
+                  print("App schlief – geweckt.")
+                  page.wait_for_timeout(90_000)
+              else:
+                  print("App war wach.")
+              browser.close()
